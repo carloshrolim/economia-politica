@@ -1,0 +1,2367 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Genealogia visual - Economia Politica</title>
+<meta name="description" content="Mapa genealogico interativo das literaturas de Economia Politica, com eixo temporal, familias visuais, linhagens e modos integrado/separado.">
+<meta property="og:title" content="Genealogia visual - Economia Politica">
+<meta property="og:description" content="Mapa genealogico interativo das literaturas de Economia Politica.">
+<meta property="og:type" content="website">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='44' fill='%231d4ed8'/%3E%3Ccircle cx='50' cy='50' r='19' fill='%23f59e0b'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f7f7f4;
+    --panel: #ffffff;
+    --ink: #171717;
+    --muted: #6b7280;
+    --border: #d8d6cf;
+    --axis: #c9c5ba;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    overflow: hidden;
+  }
+  #app {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+  }
+  #topbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    z-index: 20;
+  }
+  h1 {
+    font-size: 15px;
+    margin: 0 10px 0 0;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  #search {
+    width: 270px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 9px;
+    font-size: 13px;
+    background: #fff;
+  }
+  button, .toggle, select {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+  button, .toggle {
+    cursor: pointer;
+  }
+  button:hover, .toggle:hover { background: #f0f4ff; border-color: #9bb7f4; }
+  .toggle { display: inline-flex; align-items: center; gap: 5px; user-select: none; }
+  select {
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  .yModeControl {
+    gap: 7px;
+    padding: 4px 7px;
+  }
+  .yModeControl span {
+    font-weight: 700;
+    color: #334155;
+  }
+  #status {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  #zoomLevel {
+    min-width: 44px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  #main {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+  }
+  #mapWrap {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    cursor: grab;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,0.65), rgba(255,255,255,0.25)),
+      var(--bg);
+  }
+  #mapWrap.panning { cursor: grabbing; }
+  #map {
+    display: block;
+    min-height: 100%;
+  }
+  #timeAxis, #lineageAxis {
+    position: fixed;
+    pointer-events: none;
+    z-index: 7;
+  }
+  #timeAxis {
+    height: 32px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.94), rgba(255,255,255,0.72));
+    border-bottom: 1px solid rgba(216,214,207,0.78);
+  }
+  #lineageAxis {
+    width: 110px;
+    background: linear-gradient(to right, rgba(255,255,255,0.90), rgba(255,255,255,0));
+  }
+  .axisTick {
+    position: absolute;
+    top: 8px;
+    font-size: 11px;
+    color: #666;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .axisLineage {
+    position: absolute;
+    left: 14px;
+    max-width: 190px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.12;
+    transform: translateY(-50%);
+    text-shadow: 0 1px 0 #fff;
+  }
+  #panel {
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    overflow: auto;
+  }
+  #panelInner { padding: 18px 18px 26px; }
+  #panel h2 {
+    font-size: 18px;
+    margin: 0 0 6px;
+    line-height: 1.2;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .pill {
+    display: inline-block;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin: 0 4px 5px 0;
+    font-size: 11px;
+    background: #f7f7f7;
+  }
+  .panelBlock {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+  .panelBlock > strong {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .panelBlock p { margin: 0; line-height: 1.45; font-size: 13px; }
+  .panelBlock p + p { margin-top: 8px; }
+  .panelSubtle {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 5px 0 0;
+  }
+  .panelList {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .panelList li + li { margin-top: 4px; }
+  .relationGroup + .relationGroup { margin-top: 10px; }
+  .relationTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 750;
+    color: #27272a;
+    margin-bottom: 3px;
+  }
+  .relationSwatch {
+    width: 18px;
+    height: 0;
+    border-top: 2px dashed #94a3b8;
+    display: inline-block;
+  }
+  .relationSwatch.descends { border-color: #f97316; border-top-style: dashed; }
+  .relationSwatch.draws { border-color: #0f766e; border-top-style: dotted; }
+  .detailsBlock summary {
+    cursor: pointer;
+    color: #3f3f46;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .detailsBlock[open] summary { margin-bottom: 7px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+  .filterMenu {
+    position: static;
+  }
+  .filterMenu > summary {
+    list-style: none;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .filterMenu > summary::-webkit-details-marker { display: none; }
+  .filterMenu[open] > summary {
+    background: #f0f4ff;
+    border-color: #9bb7f4;
+  }
+  .filterPopover {
+    position: fixed;
+    top: 100px;
+    left: 14px;
+    right: 376px;
+    width: auto;
+    max-height: 255px;
+    overflow: auto;
+    background: rgba(255,255,255,0.98);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 10px 24px rgba(15,23,42,0.14);
+    z-index: 30;
+  }
+  .filterPopover strong {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  #legendMenu .filterPopover {
+    right: auto;
+    width: 310px;
+    max-height: calc(100vh - 130px);
+  }
+  #helpMenu .filterPopover {
+    right: auto;
+    width: 380px;
+    max-height: calc(100vh - 130px);
+    font-size: 12px;
+  }
+  #helpMenu summary {
+    font-weight: 800;
+    min-width: 28px;
+    text-align: center;
+  }
+  .helpList {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .nodeLink {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: #1d4ed8;
+    cursor: pointer;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .nodeLink:hover { color: #1e3a8a; background: none; border: none; }
+  button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  button:disabled:hover { background: #fff; border-color: var(--border); }
+  label.toggle:has(input:disabled) { opacity: 0.5; }
+  #map.declutter .node[data-peso="medio"] .nodeLabel,
+  #map.declutter .node[data-peso="medio"] .nodeLabelBg,
+  #map.declutter .node[data-peso="menor"] .nodeLabel,
+  #map.declutter .node[data-peso="menor"] .nodeLabelBg {
+    display: none;
+  }
+  #map.declutter .node.selected .nodeLabel,
+  #map.declutter .node.selected .nodeLabelBg,
+  #map.declutter .node.path .nodeLabel,
+  #map.declutter .node.path .nodeLabelBg {
+    display: inline;
+  }
+  #legend {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  #legend strong {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 3px;
+  }
+  .legendBlock {
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .legendRow { display: flex; align-items: center; gap: 6px; }
+  .legendHelp {
+    color: var(--muted);
+    line-height: 1.35;
+    margin-bottom: 5px;
+  }
+  .filterControl {
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 7px 10px;
+    align-items: start;
+  }
+  .filterCheck {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #3f3f46;
+    white-space: nowrap;
+  }
+  .filterCheck input { margin: 0; }
+  #tagFilter {
+    width: 210px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    background: #fff;
+  }
+  .swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .shapeSwatch {
+    width: 10px;
+    height: 10px;
+    display: inline-block;
+    background: #64748b;
+    flex: 0 0 auto;
+  }
+  .shapeCircle { border-radius: 50%; }
+  .shapeSquare { border-radius: 3px; }
+  .shapeDiamond {
+    transform: rotate(45deg);
+    border-radius: 2px;
+  }
+  svg text { user-select: none; }
+  .yearLine { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 2 7; }
+  .yearLabel { display: none; fill: #777; font-size: 11px; }
+  .lineageBand { fill: rgba(255,255,255,0.42); }
+  .lineageName { display: none; fill: #52525b; font-size: 13px; font-weight: 700; }
+  .visualEdge {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.78;
+  }
+  .visualEdge.coparent {
+    opacity: 0.48;
+  }
+  .secondaryEdge {
+    fill: none;
+    stroke-linecap: round;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .secondaryEdge.descends {
+    stroke-width: 1.7;
+  }
+  .secondaryEdge.draws {
+    stroke-width: 1.25;
+  }
+  .node { cursor: pointer; }
+  .node.has-children .nodeMarker {
+    stroke-width: 3;
+  }
+  .node.can-expand .nodeLabelBg {
+    stroke: #111827;
+    stroke-width: 1.8;
+  }
+  .expandBadge { display: none; }
+  .node.can-expand .expandBadge { display: block; }
+  .expandBadge circle {
+    fill: #ffffff;
+    stroke: #111827;
+    stroke-width: 1.4;
+  }
+  .expandBadge text {
+    fill: #111827;
+    font-size: 12px;
+    font-weight: 800;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .nodeLabelBg {
+    fill: rgba(255,255,255,0.9);
+    stroke: rgba(0,0,0,0.12);
+    stroke-width: 1;
+  }
+  .nodeLabel {
+    font-size: 14px;
+    font-weight: 600;
+    fill: #18181b;
+  }
+  .nodeMarker {
+    stroke: #fff;
+    stroke-width: 2;
+  }
+  .node.muted { opacity: 0.18; }
+  .visualEdge.muted { opacity: 0.06; }
+  .node.selected .nodeLabelBg {
+    stroke: #ef4444;
+    stroke-width: 2;
+  }
+  .node.path .nodeLabelBg {
+    stroke: #111827;
+    stroke-width: 1.4;
+  }
+  .secondaryEdge.active.descends { opacity: 0.82; }
+  .secondaryEdge.active.draws { opacity: 0.56; }
+  .verdierRing {
+    fill: none;
+    pointer-events: none;
+  }
+  .localFocusHint,
+  .localAnchorLine,
+  .localParentLine {
+    fill: none;
+    pointer-events: none;
+  }
+  .localFocusHint {
+    stroke: #111827;
+    stroke-width: 1.4;
+    opacity: 0.28;
+  }
+  .localAnchorLine {
+    stroke-width: 1.1;
+    stroke-dasharray: 4 5;
+    opacity: 0.28;
+  }
+  .localParentLine {
+    stroke: #111827;
+    stroke-width: 2;
+    opacity: 0.34;
+  }
+  .localFocusTitle {
+    font-size: 12px;
+    font-weight: 800;
+    fill: #18181b;
+    paint-order: stroke;
+    stroke: rgba(255,255,255,0.88);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+  .localCard {
+    cursor: pointer;
+  }
+  .localCardBg {
+    fill: #fff;
+    stroke-width: 1.6;
+    filter: drop-shadow(0 5px 10px rgba(15, 23, 42, 0.10));
+  }
+  .localCard:hover .localCardBg {
+    stroke-width: 2.4;
+  }
+  .localCard.selected .localCardBg {
+    stroke: #ef4444;
+    stroke-width: 2.5;
+  }
+  .localCardTitle {
+    font-size: 12px;
+    font-weight: 750;
+    fill: #18181b;
+  }
+  .localCardMeta {
+    font-size: 10.5px;
+    fill: #71717a;
+  }
+  .localCardBadge circle {
+    fill: #fff;
+    stroke: #111827;
+    stroke-width: 1.2;
+  }
+  .localCardBadge text {
+    fill: #111827;
+    font-size: 11px;
+    font-weight: 800;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  #firstVisitHint {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,0.34);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+  }
+  #firstVisitHint[hidden] { display: none; }
+  .hintCard {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 18px 40px rgba(15,23,42,0.22);
+    padding: 20px 22px;
+    max-width: 430px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+  .hintCard strong.hintTitle {
+    font-size: 15px;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .hintCard p { margin: 0 0 9px; }
+  .hintSubtle { color: var(--muted); font-size: 12px; }
+/* Apresentação v2: hierarquia de leitura e controles progressivos. */
+#topbar { padding: 11px 16px; gap: 8px; align-items: center; }
+#brand { min-width: 235px; margin-right: 4px; }
+#brand h1 { margin: 0; font-size: 16px; letter-spacing: -.01em; }
+#brand p { margin: 2px 0 0; max-width: 420px; color: var(--muted); font-size: 11px; line-height: 1.3; }
+.toolbarGroup { display: inline-flex; align-items: center; gap: 6px; }
+.toolbarGroup--main { flex: 1 1 330px; min-width: 250px; }
+#search { width: min(310px, 100%); }
+.toolbarMenu > summary { white-space: nowrap; }
+.toolbarMenu .filterPopover { left: auto; right: 14px; width: min(440px, calc(100vw - 28px)); }
+#viewMenu .filterPopover { width: min(390px, calc(100vw - 28px)); }
+.controlGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; }
+.controlGrid .toggle { justify-content: flex-start; }
+.controlGrid .wide { grid-column: 1 / -1; }
+.toolbarNote { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.35; }
+#panelInner > .panelIntro { border-left: 3px solid var(--accent); padding: 2px 0 2px 11px; margin-top: 14px; }
+.panelIntro strong { font-size: 12px; display: block; margin-bottom: 3px; }
+.panelIntro p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.node:focus { outline: none; }
+.node:focus .nodeLabelBg { stroke: #1d4ed8; stroke-width: 3; }
+.node:focus .nodeMarker { stroke: #1d4ed8; stroke-width: 4; }
+button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, .node:focus-visible { outline: 3px solid rgba(37,99,235,.40); outline-offset: 2px; }
+@media (max-width: 850px) { body { overflow: hidden; } #app { height: 100dvh; min-height: 0; grid-template-rows: auto minmax(0, 1fr); } #topbar { position: relative; align-items: flex-start; } #brand { flex: 1 1 100%; } #brand p { max-width: 720px; } .toolbarGroup--main { flex: 1 1 100%; } #search { flex: 1 1 180px; min-width: 0; } #main { min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(200px, 40%); } #panel { min-height: 0; border-left: 0; border-top: 1px solid var(--border); max-height: none; } #mapWrap { min-height: 0; } .filterPopover, .toolbarMenu .filterPopover { position: fixed; left: 10px; right: 10px; width: auto; max-height: min(56vh, 420px); } #legendMenu .filterPopover, #helpMenu .filterPopover { width: auto; right: 10px; } }
+@media (max-width: 480px) { #topbar { padding: 10px; } .toolbarGroup--main { gap: 5px; } #clear { display: none; } #fit, #fitAll { padding: 7px 8px; } .controlGrid { grid-template-columns: 1fr; } .controlGrid .wide { grid-column: auto; } #zoomLevel { display: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+  <div id="brand"><h1>Genealogias da Economia Política</h1><p>Mapa seletivo de literaturas, filiações e problemas para orientar a conversa.</p></div>
+  <div class="toolbarGroup toolbarGroup--main" role="search"><input id="search" list="nodeOptions" placeholder="Buscar uma literatura..." autocomplete="off" aria-label="Buscar literatura"><datalist id="nodeOptions"></datalist><button id="clear">Limpar</button><button id="fit">Início</button><button id="zoomOut" title="Afastar">−</button><button id="zoomIn" title="Aproximar">+</button><button id="fitAll" class="primary">Visão geral</button></div>
+  <details class="filterMenu toolbarMenu" id="viewMenu"><summary>Explorar</summary><div class="filterPopover"><strong>Modo de exploração</strong><div class="controlGrid"><label class="toggle yModeControl wide"><span>Eixo Y</span><select id="yMode" aria-label="Modo do eixo vertical"><option value="separado" selected>Separado</option><option value="integrado">Integrado</option></select></label><label class="toggle"><input type="checkbox" id="progressiveMode"> foco progressivo</label><label class="toggle"><input type="checkbox" id="localFocusMode" checked> lente local</label><label class="toggle wide"><input type="checkbox" id="showSecondary" checked> relações secundárias ao selecionar</label><button id="resetProgressive" class="wide">Recolher árvore</button><div class="toolbarNote">Atalhos: <kbd>/</kbd> busca · <kbd>F</kbd> visão geral · <kbd>Esc</kbd> solta foco · setas movem entre nós.</div></div></div></details>
+  <details class="filterMenu" id="verdierFilterMenu"><summary>Recorte do curso</summary><div class="filterPopover"><strong>Curso do Verdier</strong><div class="filterControl" id="verdierControl"></div></div></details>
+  <details class="filterMenu toolbarMenu" id="moreMenu"><summary>Mais</summary><div class="filterPopover"><strong>Ferramentas e filtros</strong><div class="controlGrid"><button id="zoomReset">Zoom 100%</button><span id="zoomLevel" aria-live="polite">100%</span><button id="exportPng" class="wide">Baixar PNG</button></div><details class="filterMenu" id="typeFilterMenu"><summary>Formas (ontologia)</summary><div class="filterPopover"><strong>Ontologia visual</strong><div class="filterControl" id="typeControl"></div></div></details><details class="filterMenu" id="traditionFilterMenu"><summary>Famílias visuais</summary><div class="filterPopover"><strong>Famílias visuais</strong><div class="filterControl" id="traditionControl"></div></div></details><input id="tagFilter" placeholder="Filtrar tags..." autocomplete="off" title="Filtrar por tags temáticas"></div></details>
+  <details class="filterMenu" id="legendMenu"><summary>Legenda</summary><div class="filterPopover"><div id="legend"><div><strong>Gramática visual</strong></div><div>X = tempo; Y = modo selecionado no topo</div><div class="legendHelp">Cor codifica família/cluster; forma codifica tipo ontológico; borda mostra presença no curso.</div><div class="legendBlock"><strong>Cores = famílias / clusters</strong><div id="branchLegend"></div></div><div class="legendBlock"><strong>Formas = ontologia</strong><div id="shapeLegend"></div></div><div class="legendBlock"><strong>Eixo Y</strong><div class="legendHelp" id="yModeHelp">Modo integrado: faixas editoriais ordenadas pela lógica estrutural-formal.</div></div></div></div></details>
+  <details class="filterMenu" id="helpMenu"><summary aria-label="Como usar o mapa">?</summary><div class="filterPopover"><strong>Como ler este mapa</strong><p class="legendHelp">Mapa seletivo em revisão. A classificação no curso e as relações são uma organização de estudo, não uma ementa oficial.</p><ul class="helpList"><li>Clique em um nó para abrir relações e referências.</li><li>Use busca ou as setas do teclado para navegar entre nós.</li><li>Abra “Recorte do curso” para destacar a presença no curso de Thierry Verdier.</li></ul></div></details><nav class="versionNav" aria-label="Versões" style="font-size:12px"><a href="../versoes.html">Versões e revisão</a></nav><div id="status"></div>
+</div>
+<div id="main">
+    <div id="mapWrap">
+      <svg id="map" role="img" aria-label="Mapa genealogico das literaturas de economia politica"><defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+  </marker>
+  <marker id="arrowFaint" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.35"></path>
+  </marker>
+</defs>
+</svg>
+      <div id="timeAxis"></div>
+      <div id="lineageAxis"></div>
+    </div>
+    <aside id="panel">
+      <div id="panelInner">
+        <h2>Selecione um no</h2>
+        <div class="meta">Clique em uma literatura para ver descricao, origem, filiacao visual e relacoes conceituais.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div id="firstVisitHint" hidden>
+  <div class="hintCard">
+    <strong class="hintTitle">Mapa genealogico de Economia Politica</strong>
+    <p>Arraste o fundo para navegar · Ctrl+scroll para zoom · clique em um no para ver os detalhes no painel.</p>
+    <p class="hintSubtle">Cores = familias intelectuais · formas = tipo de no · setas mostram de onde cada literatura vem. Reabra esta ajuda no botao <strong>?</strong> do topo.</p>
+    <button id="hintDismiss" class="primary">Comecar a explorar</button>
+  </div>
+</div>
+
+<script src="genealogia_data_v3.js"></script>
+<script>
+const DATA = window.GENEALOGIA_DATA;
+if (!DATA) {
+  document.body.innerHTML = '<main style="font-family: system-ui, -apple-system, Segoe UI, Arial, sans-serif; max-width: 720px; margin: 64px auto; padding: 24px; line-height: 1.5;"><h1>Mapa nao carregado</h1><p>O arquivo <code>genealogia_data_v3.js</code> nao foi encontrado. Publique ou abra este viewer junto com o arquivo de dados gerado pelo build.</p></main>';
+  throw new Error("GENEALOGIA_DATA ausente");
+}
+const OBSIDIAN_VAULT = "mapa_ep";
+const TRUNK_TRADITION = "__tronco_disciplinar__";
+const TRUNK_FAMILY = "Tronco disciplinar";
+
+const FAMILY_COLORS = {
+  [TRUNK_FAMILY]: "#334155",
+  "Classica": "#92400e",
+  "Marxista-Historica": "#b91c1c",
+  "Comparativa-Historica": "#be185d",
+  "NIE": "#047857",
+  "Neoclassica": "#1d4ed8",
+  "Public Choice": "#0284c7",
+  "Teoria Politica Formal": "#7c3aed",
+};
+const CLUSTER_COLORS = DATA.clusterColors || {
+  "": "#334155",
+  "C1": "#92400e",
+  "C2": "#b91c1c",
+  "C3a": "#be185d",
+  "C3b": "#e35d97",
+  "C3c": "#831843",
+  "C4": "#047857",
+  "C5a": "#1d4ed8",
+  "C5b": "#60a5fa",
+  "C5c": "#3730a3",
+  "C6": "#0891b2",
+  "C7a": "#a78bfa",
+  "C7b": "#7c3aed",
+  "C7c": "#5b21b6",
+};
+const TYPE_ORDER = ["discipline", "tradition", "research_program", "model_family", "method", "object"];
+const TYPE_LABELS = {
+  discipline: "disciplina",
+  tradition: "tradicao",
+  research_program: "programa",
+  model_family: "familia de modelos",
+  method: "metodo",
+  object: "objeto",
+};
+const ONTOLOGY_GROUP_ORDER = ["field_program", "model_method", "object_theme"];
+const ONTOLOGY_GROUP_LABELS = {
+  field_program: "campo / tradicao / programa",
+  model_method: "modelo / metodo",
+  object_theme: "objeto / tema",
+};
+const ONTOLOGY_GROUP_DESCRIPTIONS = {
+  field_program: "agregacao por escala intelectual",
+  model_method: "linguagem formal, familia de modelos ou tecnica",
+  object_theme: "problema, explanandum ou area empirica",
+};
+const WEIGHT_SIZE = { tronco: 22, major: 18, medio: 15, menor: 13 };
+const SEPARATED_WEIGHT_SIZE = { tronco: 26, major: 21, medio: 17, menor: 14 };
+const EDGE_WIDTH = { tronco: 6.0, major: 4.8, medio: 3.4, menor: 2.6 };
+
+const state = {
+  selected: null,
+  query: "",
+  visibleBranches: new Set(DATA.visualBranches || DATA.lineages),
+  visibleOntologyGroups: new Set(ONTOLOGY_GROUP_ORDER),
+  visibleVerdier: new Set(["central", "mencionado", "ausente"]),
+  searchInfo: null,
+  tagQuery: "",
+  showSecondary: true,
+  zoom: 1,
+  yMode: "separado",
+  progressiveMode: false,
+  localFocusMode: true,
+  revealedIds: new Set(),
+};
+
+const svg = document.getElementById("map");
+const wrap = document.getElementById("mapWrap");
+const byId = new Map(DATA.nodes.map(n => [n.id, n]));
+const visualEdges = DATA.visualEdges || [];
+const primaryVisualEdges = visualEdges.filter(e => (e.role || "primary") === "primary");
+const childrenByParent = new Map();
+const parentsByChild = new Map();
+visualEdges.forEach(e => {
+  if (!childrenByParent.has(e.source)) childrenByParent.set(e.source, []);
+  childrenByParent.get(e.source).push(e.target);
+  if (!parentsByChild.has(e.target)) parentsByChild.set(e.target, []);
+  parentsByChild.get(e.target).push({ id: e.source, role: e.role || "primary" });
+});
+
+const parentByChild = new Map(primaryVisualEdges.map(e => [e.target, e.source]));
+const secondaryByNode = new Map();
+DATA.secondaryEdges.forEach(e => {
+  if (!secondaryByNode.has(e.source)) secondaryByNode.set(e.source, []);
+  if (!secondaryByNode.has(e.target)) secondaryByNode.set(e.target, []);
+  secondaryByNode.get(e.source).push(e);
+  secondaryByNode.get(e.target).push(e);
+});
+
+const yearMin = Math.floor((DATA.yearRange.min - 5) / 10) * 10;
+const yearMax = Math.max(2040, Math.ceil((DATA.yearRange.max + 5) / 10) * 10);
+let width = 7200;
+let height = 3200;
+let margin = { left: 230, right: 120, top: 110, bottom: 90 };
+const INTEGRATED_LAYOUT = {
+  width: 7200,
+  height: 3200,
+  margin: { left: 420, right: 120, top: 150, bottom: 90 },
+};
+const SEPARATED_LAYOUT = {
+  width: 5000,
+  margin: { left: 420, right: 120, top: 210, bottom: 80 },
+  rowGap: 580,
+  bandHeight: 520,
+  xGap: 200,
+  yGap: 80,
+};
+// Clusters that are merged into a representative band key
+const BAND_CLUSTER_MERGE = { "C3b": "C3a", "C3c": "C3a", "C5b": "C5a", "C5c": "C5a" };
+function bandKeyForNode(n) {
+  const ck = clusterKey(n);
+  return BAND_CLUSTER_MERGE[ck] || ck;
+}
+const TIME_SCALE_BREAKS = [
+  { year: yearMin, pos: 0.00 },
+  { year: 1850, pos: 0.12 },
+  { year: 1950, pos: 0.28 },
+  { year: 1975, pos: 0.45 },
+  { year: 1990, pos: 0.61 },
+  { year: 2000, pos: 0.74 },
+  { year: 2010, pos: 0.84 },
+  { year: 2020, pos: 0.91 },
+  { year: 2030, pos: 0.96 },
+  { year: 2040, pos: 1.00 },
+];
+const SEPARATED_BRANCH_ORDER = [
+  "C2",  // marxista-historica
+  "C1",  // classica
+  "",    // campo de origem (tronco)
+  "C3a", // comparativa e historica (C3a+C3b+C3c merged)
+  "C4",  // NIE
+  "C5a", // neoclassica (C5a+C5b+C5c merged)
+  "C6",  // public choice
+  "C7a", // escolha social
+  "C7b", // modelagem / teoria dos jogos
+  "C7c", // teoria politica formal
+];
+const SEPARATED_BRANCH_LABELS = {
+  "":    "campo de origem",
+  "C3a": "comparativa e historica",
+  "C5a": "neoclassica",
+};
+const SEPARATED_BRANCHES = SEPARATED_BRANCH_ORDER;
+const Y_AXIS_BY_MODE = {
+  integrado: {
+    min: -2.0,
+    max: 2.0,
+    topLabel: "polo estrutural / holista",
+    bottomLabel: "polo agencial / formal",
+    guides: [
+      { value: -2.0, label: "estrutural puro" },
+      { value: -1.0, label: "estrutural-contextual" },
+      { value: 0.0, label: "hibrido / ponte" },
+      { value: 1.0, label: "agencial c/ instituicoes" },
+      { value: 2.0, label: "formal puro" },
+    ],
+  },
+};
+const Y_MODE_LABELS = {
+  separado: "Separado",
+  integrado: "Integrado",
+};
+const Y_MODE_HELP = {
+  separado: "Modo separado: clusters visuais em faixas; cores preservam familias intelectuais.",
+  integrado: "Modo integrado: eixo continuo estrutural-formal; cores desembaralham familias e clusters.",
+};
+const ROOT_IDS = DATA.nodes.filter(n => !n.visual_parent).map(n => n.id);
+const MIN_ZOOM = 0.12;
+const MAX_ZOOM = 3.20;
+const ZOOM_STEP = 1.025;
+const LABEL_WIDTH = 210;
+const LABEL_LINE_HEIGHT = 16;
+const COLLISION_X_GAP = 300;
+const COLLISION_Y_GAP = 78;
+const COLLISION_OFFSETS = [0, -88, 88, -176, 176, -264, 264, -352, 352, -440, 440];
+const LOCAL_CARD_WIDTH = 268;
+const LOCAL_CARD_HEIGHT = 78;
+const LOCAL_CARD_GAP_X = 30;
+const LOCAL_CARD_GAP_Y = 20;
+const LOCAL_CARD_LINE_HEIGHT = 13;
+
+resetProgressiveState();
+
+function isSeparatedMode() {
+  return state.yMode === "separado";
+}
+
+function configureLayout() {
+  if (isSeparatedMode()) {
+    width = SEPARATED_LAYOUT.width;
+    margin = { ...SEPARATED_LAYOUT.margin };
+    height = margin.top + SEPARATED_BRANCHES.length * SEPARATED_LAYOUT.rowGap + margin.bottom;
+    return;
+  }
+  width = INTEGRATED_LAYOUT.width;
+  height = INTEGRATED_LAYOUT.height;
+  margin = { ...INTEGRATED_LAYOUT.margin };
+}
+
+function xScale(year) {
+  const y = Number(year || yearMin);
+  const last = TIME_SCALE_BREAKS[TIME_SCALE_BREAKS.length - 1];
+  if (y <= TIME_SCALE_BREAKS[0].year) return margin.left;
+  if (y >= last.year) return width - margin.right;
+
+  const segment = TIME_SCALE_BREAKS.find((current, i) => {
+    const next = TIME_SCALE_BREAKS[i + 1];
+    return next && y >= current.year && y <= next.year;
+  });
+  const next = TIME_SCALE_BREAKS[TIME_SCALE_BREAKS.indexOf(segment) + 1];
+  const localT = (y - segment.year) / (next.year - segment.year);
+  const t = segment.pos + localT * (next.pos - segment.pos);
+  return margin.left + clamp(t, 0, 1) * (width - margin.left - margin.right);
+}
+
+function yearTicks() {
+  return [1625, 1700, 1775, 1850, 1900, 1950, 1975, 1990, 2000, 2010, 2020, 2030, 2040]
+    .filter(y => y >= yearMin && y <= yearMax);
+}
+
+function activeAxisY() {
+  return Y_AXIS_BY_MODE.integrado;
+}
+
+function yScale(anchor) {
+  const axis = activeAxisY();
+  const t = (Number(anchor || 0) - axis.min) / (axis.max - axis.min);
+  return margin.top + clamp(t, 0, 1) * (height - margin.top - margin.bottom);
+}
+
+function nodeYAnchor(n) {
+  return clamp(Number(n.ancoragem_analitica || 0), Y_AXIS_BY_MODE.integrado.min, Y_AXIS_BY_MODE.integrado.max);
+}
+
+function nodeYLabel(n) {
+  if (isSeparatedMode()) return separatedBranchLabel(bandKeyForNode(n));
+  return `ancoragem ${n.ancoragem_analitica}`;
+}
+
+function bandsForYMode() {
+  return activeAxisY().guides || [];
+}
+
+function yBandRanges() {
+  const bands = bandsForYMode();
+  const axis = activeAxisY();
+  return bands.map((band, i) => {
+    const prev = bands[i - 1];
+    const next = bands[i + 1];
+    return {
+      band,
+      top: prev ? (prev.value + band.value) / 2 : axis.min,
+      bottom: next ? (band.value + next.value) / 2 : axis.max,
+    };
+  });
+}
+
+function computeIntegratedPositions() {
+  const placed = [];
+  DATA.nodes
+    .slice()
+    .sort((a, b) => a.ano_origem - b.ano_origem || a.label.localeCompare(b.label))
+    .forEach(n => {
+      const x = xScale(n.ano_origem);
+      const baseY = yScale(nodeYAnchor(n));
+      let chosenY = baseY;
+      for (const offset of COLLISION_OFFSETS) {
+        const candidate = clamp(baseY + offset, margin.top + 28, height - margin.bottom - 28);
+        const collides = placed.some(p => Math.abs(p.x - x) < COLLISION_X_GAP && Math.abs(p.y - candidate) < COLLISION_Y_GAP);
+        if (!collides) {
+          chosenY = candidate;
+          break;
+        }
+      }
+      n.x = x;
+      n.yBase = baseY;
+      n.y = chosenY;
+      n.faixa_y_hibrida = null;
+      n.ancoragem_visual_hibrida = null;
+      n.faixa_y_atual = nodeYLabel(n);
+      n.ancoragem_visual_atual = Math.round(nodeYAnchor(n) * 100) / 100;
+      placed.push({ x, y: chosenY });
+  });
+}
+
+function computeSeparatedPositions() {
+  const branchIndex = new Map(SEPARATED_BRANCHES.map((branch, i) => [branch, i]));
+  const byBranch = new Map(SEPARATED_BRANCHES.map(branch => [branch, []]));
+  DATA.nodes.forEach(n => {
+    const band = branchIndex.has(bandKeyForNode(n)) ? bandKeyForNode(n) : SEPARATED_BRANCHES[0];
+    byBranch.get(band).push(n);
+  });
+
+  const yG = SEPARATED_LAYOUT.yGap;
+  const tryOffsets = [0, -yG, yG, -2*yG, 2*yG, -3*yG, 3*yG,
+    -Math.round(0.5*yG), Math.round(0.5*yG),
+    -Math.round(1.5*yG), Math.round(1.5*yG),
+    -Math.round(2.5*yG), Math.round(2.5*yG)];
+
+  byBranch.forEach((nodes, band) => {
+    const bIdx = branchIndex.get(band);
+    const familyCenter = margin.top + bIdx * SEPARATED_LAYOUT.rowGap + SEPARATED_LAYOUT.bandHeight / 2;
+    const pad = 14;
+    const yMin = familyCenter - SEPARATED_LAYOUT.bandHeight / 2 + pad;
+    const yMax = familyCenter + SEPARATED_LAYOUT.bandHeight / 2 - pad;
+    const yRange = yMax - yMin;
+
+    // Y base within band: structural (aMin) → top (yMin), formal (aMax) → bottom (yMax) — same convention as Integrado
+    const anchors = nodes.map(n => Number(n.ancoragem_analitica || 0));
+    const aMin = Math.min(...anchors);
+    const aMax = Math.max(...anchors);
+    const aRange = aMax - aMin;
+
+    const placed = [];
+    nodes
+      .sort((a, b) => a.ano_origem - b.ano_origem || Number(a.ancoragem_analitica || 0) - Number(b.ancoragem_analitica || 0))
+      .forEach(n => {
+        const x = xScale(n.ano_origem);
+        const anchor = Number(n.ancoragem_analitica || 0);
+        const baseY = aRange < 0.01
+          ? familyCenter
+          : clamp(yMin + (anchor - aMin) / aRange * yRange, yMin, yMax);
+
+        let bestY = baseY;
+        for (const off of tryOffsets) {
+          const cand = clamp(baseY + off, yMin, yMax);
+          // Same-anchor nodes (same baseY) always collide regardless of X distance
+          // Different-anchor nodes only collide when within xGap in X
+          if (!placed.some(p => {
+            const sameAnchor = Math.abs(p.baseY - baseY) < 1;
+            const xClose = sameAnchor ? true : Math.abs(p.x - x) < SEPARATED_LAYOUT.xGap;
+            return xClose && Math.abs(p.y - cand) < yG;
+          })) { bestY = cand; break; }
+        }
+        n.x = x;
+        n.yBase = familyCenter;
+        n.y = bestY;
+        n.faixa_y_atual = separatedBranchLabel(band);
+        n.ancoragem_visual_atual = null;
+        placed.push({ x, y: bestY, baseY });
+      });
+  });
+}
+
+function computePositions() {
+  configureLayout();
+  if (isSeparatedMode()) computeSeparatedPositions();
+  else computeIntegratedPositions();
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function tagsArray(n) {
+  if (Array.isArray(n.tags_tematicas)) return n.tags_tematicas;
+  return String(n.tags_tematicas || "").split(";").map(t => t.trim()).filter(Boolean);
+}
+
+function tagsText(n) {
+  return tagsArray(n).join("; ");
+}
+
+function traditionKey(n) {
+  return n.tradicao_visual || n.tradicao_genealogica || TRUNK_TRADITION;
+}
+
+function traditionLabel(key) {
+  return (DATA.traditionLabels && DATA.traditionLabels[key]) || (key === TRUNK_TRADITION ? "tronco disciplinar" : key);
+}
+
+function nodeTraditionLabel(n) {
+  return n.tradicao_genealogica ? traditionLabel(n.tradicao_genealogica) : traditionLabel(TRUNK_TRADITION);
+}
+
+function branchKey(n) {
+  return n.familia_visual || n.ramo_visual || TRUNK_FAMILY;
+}
+
+function separatedBranchLabel(branch) {
+  return SEPARATED_BRANCH_LABELS[branch] || (DATA.clusterLabels && DATA.clusterLabels[branch]) || branch;
+}
+
+function separatedBranchColor(branch) {
+  return (DATA.clusterColors && DATA.clusterColors[branch]) || CLUSTER_COLORS[branch] || "#475569";
+}
+
+function clusterKey(n) {
+  return n.cluster_visual || "";
+}
+
+function clusterLabel(n) {
+  const key = clusterKey(n);
+  return n.cluster_visual_label || (DATA.clusterLabels && DATA.clusterLabels[key]) || (key ? key : "tronco disciplinar");
+}
+
+function colorForNode(n) {
+  return n.cluster_visual_color || CLUSTER_COLORS[clusterKey(n)] || FAMILY_COLORS[branchKey(n)] || "#64748b";
+}
+
+function verdierRing(n) {
+  const value = String(n.centralidade_verdier || "ausente").toLowerCase();
+  if (value === "central") return { color: "#f59e0b", width: 3.2, pad: 4.8 };
+  if (value === "mencionado") return { color: "#64748b", width: 2.1, pad: 3.9 };
+  return { color: "rgba(255,255,255,0)", width: 0, pad: 0 };
+}
+
+function nodeSize(n) {
+  const sizes = isSeparatedMode() ? SEPARATED_WEIGHT_SIZE : WEIGHT_SIZE;
+  return sizes[n.peso_visual] || 8;
+}
+
+function typeLabel(type) {
+  return TYPE_LABELS[type] || type || "tipo indefinido";
+}
+
+function verdierKey(n) {
+  const v = String(n.centralidade_verdier || "").toLowerCase();
+  return v === "central" || v === "mencionado" ? v : "ausente";
+}
+
+function verdierLabel(value) {
+  const clean = String(value || "ausente").toLowerCase();
+  if (clean === "central") return "central no curso";
+  if (clean === "mencionado") return "mencionada no curso";
+  return "fora do curso";
+}
+
+function ontologyGroupLabel(group) {
+  return ONTOLOGY_GROUP_LABELS[group] || group || "ontologia";
+}
+
+function shapeLegendMarker(group) {
+  if (group === "model_method") {
+    return `<span class="shapeSwatch shapeDiamond"></span>`;
+  }
+  if (group === "object_theme") {
+    return `<span class="shapeSwatch shapeSquare"></span>`;
+  }
+  return `<span class="shapeSwatch shapeCircle"></span>`;
+}
+
+function passesFacetFilters(n) {
+  const branchOk = state.visibleBranches.has(branchKey(n));
+  const typeOk = state.visibleOntologyGroups.has(n.grupo_ontologico_visual || "field_program");
+  const verdierOk = state.visibleVerdier.has(verdierKey(n));
+  const tagQuery = state.tagQuery.trim().toLowerCase();
+  const tagOk = !tagQuery || tagsArray(n).some(tag => tag.toLowerCase().includes(tagQuery));
+  return branchOk && typeOk && verdierOk && tagOk;
+}
+
+function nodeTooltip(n) {
+  return [
+    n.label,
+    `tipo: ${typeLabel(n.tipo_ontologico)}`,
+    `familia visual: ${branchKey(n)}`,
+    `cluster visual: ${clusterLabel(n)}`,
+    `tradicao: ${nodeTraditionLabel(n)}`,
+    `Y (${Y_MODE_LABELS[state.yMode]}): ${nodeYLabel(n)}`,
+    `ancoragem: ${n.ancoragem_analitica} (${n.ancoragem_analitica_fonte || "auto"})`,
+    `forma: ${ontologyGroupLabel(n.grupo_ontologico_visual)}`,
+    `tags: ${tagsText(n) || "sem tags"}`,
+    `ano: ${n.ano_origem || "s/d"}`,
+    `marco: ${n.marco_origem || "s/d"}`,
+    `observacao: ${n.observacao || ""}`,
+  ].join("\n");
+}
+
+function textBlock(s) {
+  const clean = String(s || "").trim();
+  if (!clean) return "<p>Sem descricao curta nesta ficha.</p>";
+  return clean
+    .split(/\n{2,}/)
+    .map(p => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  return [value];
+}
+
+function cleanRefLabel(value) {
+  return String(value || "")
+    .replace(/^\s*\[\[/, "")
+    .replace(/\]\]\s*$/, "")
+    .replace(/^Literatura - /, "")
+    .replace(/^Paper - /, "")
+    .replace(/^Modelo - /, "")
+    .replace(/^Pergunta - /, "")
+    .trim();
+}
+
+function referenceHtml(item) {
+  const match = String(item).match(/https:\/\/doi\.org\/[^\s<>"']+/i);
+  if (!match) return esc(item);
+  const url = match[0].replace(/[.,;]+$/, "");
+  const start = item.indexOf(url);
+  return esc(item.slice(0, start)) + '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Abrir referência ↗</a>' + esc(item.slice(start + url.length));
+}
+
+function listItems(items, limit = 6) {
+  const arr = asArray(items).map(cleanRefLabel).filter(Boolean);
+  if (!arr.length) return "<p>Nao cadastrado nesta ficha.</p>";
+  const shown = arr.slice(0, limit);
+  const extra = arr.length > limit ? `<li>+ ${arr.length - limit} itens adicionais na ficha.</li>` : "";
+  return `<ul class="panelList">${shown.map(item => `<li>${referenceHtml(item)}</li>`).join("")}${extra}</ul>`;
+}
+
+function relationGroup(title, swatchClass, items, emptyText) {
+  if (!items.length) return "";
+  return `<div class="relationGroup">
+    <div class="relationTitle"><span class="relationSwatch ${swatchClass}"></span>${esc(title)}</div>
+    <ul class="panelList">${items.map(item => `<li>${nodeLinkHtml(item.id, item.label)}</li>`).join("")}</ul>
+  </div>`;
+}
+
+function secondaryRelationGroups(n, sec) {
+  const groups = {
+    descendsFrom: [],
+    descendants: [],
+    drawsOn: [],
+    usedBy: [],
+  };
+  sec.forEach(e => {
+    const other = byId.get(e.source === n.id ? e.target : e.source);
+    if (!other) return;
+    const ref = { id: other.id, label: other.label };
+    if (e.type === "descends_from" && e.source === n.id) groups.descendsFrom.push(ref);
+    else if (e.type === "descends_from" && e.target === n.id) groups.descendants.push(ref);
+    else if (e.type === "draws_on" && e.source === n.id) groups.drawsOn.push(ref);
+    else if (e.type === "draws_on" && e.target === n.id) groups.usedBy.push(ref);
+  });
+  const html = [
+    relationGroup("Descende de (genealogia secundaria forte)", "descends", groups.descendsFrom),
+    relationGroup("Literaturas que descendem deste no", "descends", groups.descendants),
+    relationGroup("Usa base de (metodo, conceito ou objeto)", "draws", groups.drawsOn),
+    relationGroup("Usado como base por", "draws", groups.usedBy),
+  ].join("");
+  return html || `<p>Nenhuma relacao conceitual secundaria cadastrada.</p>`;
+}
+
+function pathBetween(a, b) {
+  // Gramatica direcional: aresta sai do lado DIREITO (futuro) do pai
+  // e chega no lado ESQUERDO (passado) do filho.
+  const aSize = nodeSize(a) + 2;
+  const bSize = nodeSize(b) + 2;
+  const ax = a.x + aSize;
+  const bx = b.x - bSize;
+  const dx = Math.max(30, Math.abs(bx - ax) * 0.45);
+  return `M ${ax} ${a.y} C ${ax + dx} ${a.y}, ${bx - dx} ${b.y}, ${bx} ${b.y}`;
+}
+
+function wrapLabel(label, maxChars = 24, maxLines = 3) {
+  const words = String(label || "").split(/\s+/);
+  const lines = [];
+  let cur = "";
+  words.forEach(word => {
+    const next = cur ? `${cur} ${word}` : word;
+    if (next.length <= maxChars || !cur) {
+      cur = next;
+    } else {
+      lines.push(cur);
+      cur = word;
+    }
+  });
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    kept[maxLines - 1] = kept[maxLines - 1].replace(/\.*$/, "") + "...";
+    return kept;
+  }
+  return lines;
+}
+
+function labelMetrics(label) {
+  const lines = wrapLabel(label);
+  const maxLen = Math.max(...lines.map(l => l.length), 8);
+  return {
+    lines,
+    width: Math.min(LABEL_WIDTH, Math.max(96, maxLen * 7.0 + 22)),
+    height: Math.max(32, lines.length * LABEL_LINE_HEIGHT + 14),
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function directVisibleChildren(id) {
+  return (childrenByParent.get(id) || [])
+    .map(childId => byId.get(childId))
+    .filter(Boolean)
+    .filter(passesFacetFilters)
+    .filter(child => !state.progressiveMode || state.revealedIds.has(child.id))
+    .sort((a, b) => a.ano_origem - b.ano_origem || a.label.localeCompare(b.label));
+}
+
+function computeLocalFocusGeometry(n) {
+  if (!state.progressiveMode || !state.localFocusMode || !state.selected || state.selected !== n.id) return null;
+  const kids = directVisibleChildren(n.id);
+  if (!kids.length) return null;
+
+  const columns = kids.length > 5 ? 2 : 1;
+  const rows = Math.ceil(kids.length / columns);
+  const shelfW = columns * LOCAL_CARD_WIDTH + (columns - 1) * LOCAL_CARD_GAP_X;
+  const shelfH = rows * LOCAL_CARD_HEIGHT + (rows - 1) * LOCAL_CARD_GAP_Y;
+  const side = n.x + 220 + shelfW < width - margin.right ? 1 : -1;
+  let startX = side === 1 ? n.x + 220 : n.x - 220 - shelfW;
+  let startY = n.y - shelfH / 2;
+
+  startX = clamp(startX, margin.left, width - margin.right - shelfW);
+  startY = clamp(startY, 52, height - margin.bottom - shelfH);
+
+  const cards = kids.map((child, i) => {
+    const row = Math.floor(i / columns);
+    const col = i % columns;
+    return {
+      node: child,
+      x: startX + col * (LOCAL_CARD_WIDTH + LOCAL_CARD_GAP_X),
+      y: startY + row * (LOCAL_CARD_HEIGHT + LOCAL_CARD_GAP_Y),
+    };
+  });
+
+  return { kids, cards, columns, rows, shelfW, shelfH, startX, startY, side };
+}
+
+function localCurve(x1, y1, x2, y2) {
+  const dx = Math.max(42, Math.abs(x2 - x1) * 0.44);
+  const sign = x2 >= x1 ? 1 : -1;
+  return `M ${x1} ${y1} C ${x1 + sign * dx} ${y1}, ${x2 - sign * dx} ${y2}, ${x2} ${y2}`;
+}
+
+function markerSvg(n) {
+  const color = colorForNode(n);
+  const size = nodeSize(n);
+  const group = n.grupo_ontologico_visual || "field_program";
+  const ring = verdierRing(n);
+  if (group === "model_method") {
+    const s = size * 1.45;
+    const ringS = s + ring.pad * 2;
+    const ringSvg = ring.width
+      ? `<rect class="verdierRing" x="${-ringS/2}" y="${-ringS/2}" width="${ringS}" height="${ringS}" rx="2.6" transform="rotate(45)" stroke="${ring.color}" stroke-width="${ring.width}"></rect>`
+      : "";
+    return `${ringSvg}<rect class="nodeMarker" x="${-s/2}" y="${-s/2}" width="${s}" height="${s}" rx="2" transform="rotate(45)" fill="${color}"></rect>`;
+  }
+  if (group === "object_theme") {
+    const s = size * 1.65;
+    const ringS = s + ring.pad * 2;
+    const ringSvg = ring.width
+      ? `<rect class="verdierRing" x="${-ringS/2}" y="${-ringS/2}" width="${ringS}" height="${ringS}" rx="6.5" stroke="${ring.color}" stroke-width="${ring.width}"></rect>`
+      : "";
+    return `${ringSvg}<rect class="nodeMarker" x="${-s/2}" y="${-s/2}" width="${s}" height="${s}" rx="5" fill="${color}"></rect>`;
+  }
+  const ringSvg = ring.width
+    ? `<circle class="verdierRing" cx="0" cy="0" r="${size + ring.pad}" stroke="${ring.color}" stroke-width="${ring.width}"></circle>`
+    : "";
+  return `${ringSvg}<circle class="nodeMarker" cx="0" cy="0" r="${size}" fill="${color}"></circle>`;
+}
+
+function localCardSvg(card) {
+  const n = card.node;
+  const color = colorForNode(n);
+  const lines = wrapLabel(n.label, 28, 3);
+  const hiddenKids = state.progressiveMode && (childrenByParent.get(n.id) || []).some(id => !state.revealedIds.has(id));
+  let html = `<g class="localCard${state.selected === n.id ? " selected" : ""}" data-id="${n.id}" transform="translate(${card.x},${card.y})">`;
+  html += `<rect class="localCardBg" x="0" y="0" width="${LOCAL_CARD_WIDTH}" height="${LOCAL_CARD_HEIGHT}" rx="7" stroke="${color}"></rect>`;
+  html += `<rect x="0" y="0" width="6" height="${LOCAL_CARD_HEIGHT}" rx="7" fill="${color}" opacity="0.88"></rect>`;
+  html += `<g transform="translate(23,24) scale(0.68)">${markerSvg(n)}</g>`;
+  html += `<text class="localCardTitle" x="43" y="18">`;
+  lines.forEach((line, i) => {
+    html += `<tspan x="43" dy="${i === 0 ? 0 : LOCAL_CARD_LINE_HEIGHT}">${esc(line)}</tspan>`;
+  });
+  html += `</text>`;
+  html += `<text class="localCardMeta" x="43" y="${LOCAL_CARD_HEIGHT - 12}">${n.ano_origem} · ${esc(typeLabel(n.tipo_ontologico))} · ${esc(n.peso_visual)}</text>`;
+  if (hiddenKids) {
+    html += `<g class="localCardBadge" transform="translate(${LOCAL_CARD_WIDTH - 18},18)"><circle r="8"></circle><text y="-0.5">+</text></g>`;
+  }
+  html += `</g>`;
+  return html;
+}
+
+function renderLocalFocusLayer(n) {
+  const geom = computeLocalFocusGeometry(n);
+  if (!geom) return "";
+
+  const shelfEdgeX = geom.side === 1 ? geom.startX : geom.startX + geom.shelfW;
+  const shelfMidY = geom.startY + geom.shelfH / 2;
+  let html = `<g class="localFocusLayer">`;
+  html += `<text class="localFocusTitle" x="${geom.startX}" y="${geom.startY - 12}">Filhos diretos de ${esc(n.label)}</text>`;
+  html += `<path class="localParentLine" d="${localCurve(n.x, n.y, shelfEdgeX, shelfMidY)}"></path>`;
+
+  geom.cards.forEach(card => {
+    const child = card.node;
+    const color = colorForNode(child);
+    const cardX = card.x + (geom.side === 1 ? 0 : LOCAL_CARD_WIDTH);
+    const cardY = card.y + LOCAL_CARD_HEIGHT / 2;
+    html += `<path class="localAnchorLine" stroke="${color}" d="${localCurve(cardX, cardY, child.x, child.y)}"></path>`;
+  });
+
+  geom.cards.forEach(card => {
+    html += localCardSvg(card);
+  });
+
+  html += `</g>`;
+  return html;
+}
+
+function updateLocalFocus() {
+  const layer = svg.querySelector("#localFocus");
+  if (!layer) return;
+  if (!state.localFocusMode || !state.selected || !byId.has(state.selected)) {
+    layer.innerHTML = "";
+    return;
+  }
+  layer.innerHTML = renderLocalFocusLayer(byId.get(state.selected));
+  layer.querySelectorAll(".localCard").forEach(card => {
+    card.addEventListener("click", e => {
+      e.stopPropagation();
+      selectNode(card.dataset.id, true);
+    });
+  });
+}
+
+function render() {
+  computePositions();
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const decades = yearTicks();
+  let html = "";
+  html += `<rect width="${width}" height="${height}" fill="transparent"></rect>`;
+  if (isSeparatedMode()) {
+    SEPARATED_BRANCHES.forEach((branch, i) => {
+      const y = margin.top + i * SEPARATED_LAYOUT.rowGap;
+      const fill = i % 2 === 0 ? "rgba(248,250,252,0.82)" : "rgba(255,255,255,0.48)";
+      const color = separatedBranchColor(branch);
+      html += `<rect class="lineageBand" x="0" y="${y - 2}" width="${width}" height="${SEPARATED_LAYOUT.bandHeight}" fill="${fill}"></rect>`;
+      html += `<line x1="${margin.left - 8}" y1="${y + SEPARATED_LAYOUT.bandHeight / 2}" x2="${width - margin.right}" y2="${y + SEPARATED_LAYOUT.bandHeight / 2}" stroke="${color}" stroke-width="1" opacity="0.18"></line>`;
+      html += `<text class="lineageName" x="18" y="${y + SEPARATED_LAYOUT.bandHeight / 2 + 4}" fill="${color}">${esc(separatedBranchLabel(branch))}</text>`;
+    });
+  } else {
+    yBandRanges().forEach((range, i) => {
+      const y1 = yScale(range.top);
+      const y2 = yScale(range.bottom);
+      const fill = i % 2 === 0 ? "rgba(248,250,252,0.70)" : "rgba(255,255,255,0.36)";
+      html += `<rect x="${margin.left - 8}" y="${y1}" width="${width - margin.left - margin.right + 8}" height="${y2 - y1}" fill="${fill}"></rect>`;
+    });
+  }
+  decades.forEach(y => {
+    const x = xScale(y);
+    html += `<line class="yearLine" x1="${x}" y1="42" x2="${x}" y2="${height - 35}"></line>`;
+    html += `<text class="yearLabel" x="${x}" y="28" text-anchor="middle">${y}</text>`;
+  });
+
+  if (!isSeparatedMode()) {
+    (activeAxisY().guides || []).forEach(guide => {
+      const y = yScale(guide.value);
+      const strong = Math.abs(guide.value) < 0.05;
+      html += `<line x1="${margin.left - 8}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${strong ? "#64748b" : "#cbd5e1"}" stroke-width="${strong ? 1.4 : 1}" opacity="${strong ? 0.34 : 0.24}"></line>`;
+      html += `<text class="lineageName" x="18" y="${y + 4}" fill="#475569">${esc(guide.label)}</text>`;
+    });
+  }
+
+  html += `<g id="visualEdges">`;
+  visualEdges.forEach(e => {
+    const a = byId.get(e.source);
+    const b = byId.get(e.target);
+    if (!a || !b) return;
+    const color = colorForNode(b);
+    const role = e.role || "primary";
+    const widthEdge = EDGE_WIDTH[b.peso_visual] || 2.5;
+    const roleWidth = role === "coparent" ? Math.max(1.6, widthEdge * 0.55) : widthEdge;
+    const roleLabel = role === "coparent" ? "co-pai visual" : "pai visual";
+    html += `<path class="visualEdge ${role === "coparent" ? "coparent" : "primary"}" data-source="${e.source}" data-target="${e.target}" data-role="${role}" d="${pathBetween(a, b)}" stroke="${color}" stroke-width="${roleWidth}" style="color:${color}" marker-end="url(#arrow)"><title>${esc(b.label)} — ${roleLabel}: ${esc(a.label)}</title></path>`;
+  });
+  html += `</g>`;
+
+  html += `<g id="secondaryEdges">`;
+  DATA.secondaryEdges.forEach(e => {
+    // Em descends_from e draws_on a convencao dos dados e: source=mais novo, target=mais antigo.
+    // Para a seta visual representar o fluxo temporal (older -> newer), invertemos: desenhar de target para source.
+    const a = byId.get(e.target);
+    const b = byId.get(e.source);
+    const isDescends = e.type === "descends_from";
+    const color = isDescends ? "#f97316" : "#0f766e";
+    const dash = isDescends ? "5 4" : "1 5";
+    const typeClass = isDescends ? "descends" : "draws";
+    html += `<path class="secondaryEdge ${typeClass}" data-source="${e.source}" data-target="${e.target}" data-type="${e.type}" d="${pathBetween(a, b)}" stroke="${color}" stroke-dasharray="${dash}" style="color:${color}" marker-end="url(#arrowFaint)"></path>`;
+  });
+  html += `</g>`;
+
+  html += `<g id="nodes">`;
+  DATA.nodes.forEach(n => {
+    const metrics = labelMetrics(n.label);
+    const labelY = -(metrics.lines.length - 1) * LABEL_LINE_HEIGHT / 2 + 4;
+    const isVisible = passesFacetFilters(n);
+    html += `<g class="node${isVisible ? "" : " muted"}" data-id="${n.id}" data-peso="${esc(n.peso_visual || "menor")}" transform="translate(${n.x},${n.y})" role="button" tabindex="0" aria-label="${esc(n.label)}">`;
+    html += `<title>${esc(nodeTooltip(n))}</title>`;
+    html += markerSvg(n);
+    html += `<g class="expandBadge" transform="translate(6,-18)"><circle r="8"></circle><text y="-0.5">+</text></g>`;
+    html += `<rect class="nodeLabelBg" x="14" y="${-metrics.height / 2}" width="${metrics.width}" height="${metrics.height}" rx="5"></rect>`;
+    html += `<text class="nodeLabel" x="22" y="${labelY}">`;
+    metrics.lines.forEach((line, i) => {
+      html += `<tspan x="22" dy="${i === 0 ? 0 : LABEL_LINE_HEIGHT}">${esc(line)}</tspan>`;
+    });
+    html += `</text>`;
+    html += `</g>`;
+  });
+  html += `</g>`;
+  html += `<g id="localFocus"></g>`;
+  svg.innerHTML = html;
+
+  bindNodeEvents();
+  applyZoom(false);
+  applyState();
+  updateAxes();
+}
+
+function resetProgressiveState() {
+  state.revealedIds = new Set(ROOT_IDS);
+}
+
+// Nota: os ganchos do zoom semantico (currentSemanticLevel, passesSemanticZoom,
+// isMajorNode) foram removidos em 2026-06-11 por estarem mortos desde a retirada
+// da feature da UI. Se a ideia voltar, recuperar de
+// _preservados/2026-06-11_pre_proposta_melhorias/ ou dos experimentos v3.x.
+
+function applyZoom(preserveCenter = true) {
+  const oldZoom = state.zoom || 1;
+  let centerX = 0;
+  let centerY = 0;
+  if (preserveCenter) {
+    centerX = (wrap.scrollLeft + wrap.clientWidth / 2) / oldZoom;
+    centerY = (wrap.scrollTop + wrap.clientHeight / 2) / oldZoom;
+  }
+  svg.setAttribute("width", Math.round(width * state.zoom));
+  svg.setAttribute("height", Math.round(height * state.zoom));
+  document.getElementById("zoomLevel").textContent = `${Math.round(state.zoom * 100)}%`;
+  updateDeclutter();
+  if (preserveCenter) {
+    wrap.scrollLeft = Math.max(0, centerX * state.zoom - wrap.clientWidth / 2);
+    wrap.scrollTop = Math.max(0, centerY * state.zoom - wrap.clientHeight / 2);
+  }
+  updateAxes();
+}
+
+function setZoom(nextZoom, preserveCenter = true) {
+  state.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
+  applyZoom(preserveCenter);
+}
+
+function setZoomAt(nextZoom, clientX, clientY) {
+  const rect = wrap.getBoundingClientRect();
+  const localX = clientX - rect.left;
+  const localY = clientY - rect.top;
+  const mapX = (wrap.scrollLeft + localX) / state.zoom;
+  const mapY = (wrap.scrollTop + localY) / state.zoom;
+  state.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
+  svg.setAttribute("width", Math.round(width * state.zoom));
+  svg.setAttribute("height", Math.round(height * state.zoom));
+  document.getElementById("zoomLevel").textContent = `${Math.round(state.zoom * 100)}%`;
+  updateDeclutter();
+  wrap.scrollLeft = Math.max(0, mapX * state.zoom - localX);
+  wrap.scrollTop = Math.max(0, mapY * state.zoom - localY);
+  updateAxes();
+}
+
+function updateAxes() {
+  const timeAxis = document.getElementById("timeAxis");
+  const lineageAxis = document.getElementById("lineageAxis");
+  if (!timeAxis || !lineageAxis) return;
+
+  // Use actual SVG rendered size to compute effective zoom (min-width/height may stretch SVG beyond state.zoom)
+  const svgRect = svg.getBoundingClientRect();
+  const ezX = svgRect.width / width;
+  const ezY = svgRect.height / height;
+
+  const wrapRect = wrap.getBoundingClientRect();
+  timeAxis.style.width = `${wrap.clientWidth}px`;
+  timeAxis.style.left = `${wrapRect.left}px`;
+  timeAxis.style.top = `${wrapRect.top}px`;
+  lineageAxis.style.height = `${wrap.clientHeight}px`;
+  lineageAxis.style.left = `${wrapRect.left}px`;
+  lineageAxis.style.top = `${wrapRect.top}px`;
+
+  timeAxis.innerHTML = yearTicks().map(y => {
+    const left = xScale(y) * ezX - wrap.scrollLeft;
+    if (left < 120 || left > wrap.clientWidth + 40) return "";
+    return `<div class="axisTick" style="left:${left}px">${y}</div>`;
+  }).join("");
+
+  if (isSeparatedMode()) {
+    lineageAxis.innerHTML = SEPARATED_BRANCHES.map((branch, i) => {
+      const y = margin.top + i * SEPARATED_LAYOUT.rowGap + SEPARATED_LAYOUT.bandHeight / 2;
+      const top = y * ezY - wrap.scrollTop;
+      if (top < 44 || top > wrap.clientHeight - 44) return "";
+      return `<div class="axisLineage" style="top:${top}px;color:${separatedBranchColor(branch)}">${esc(separatedBranchLabel(branch))}</div>`;
+    }).join("");
+  } else {
+    const axis = activeAxisY();
+    const guideLabels = (axis.guides || []).map(guide => {
+      const y = yScale(guide.value);
+      const top = y * ezY - wrap.scrollTop;
+      if (top < 44 || top > wrap.clientHeight - 44) return "";
+      return `<div class="axisLineage" style="top:${top}px;color:#475569">${esc(guide.label)}</div>`;
+    }).join("");
+    lineageAxis.innerHTML = `
+      <div class="axisLineage" style="top:16px;color:#334155">${esc(axis.topLabel || "")}</div>
+      ${guideLabels}
+      <div class="axisLineage" style="bottom:14px;color:#334155;transform:none">${esc(axis.bottomLabel || "")}</div>
+    `;
+  }
+}
+
+function visualParentIds(id) {
+  return (parentsByChild.get(id) || []).map(parent => parent.id);
+}
+
+function hasVisualParent(childId, parentId) {
+  return visualParentIds(childId).includes(parentId);
+}
+
+function ancestors(id) {
+  const out = new Set();
+  let cur = id;
+  while (parentByChild.has(cur)) {
+    cur = parentByChild.get(cur);
+    out.add(cur);
+  }
+  return out;
+}
+
+function descendants(id) {
+  const out = new Set();
+  const stack = [...(childrenByParent.get(id) || [])];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (out.has(cur)) continue;
+    out.add(cur);
+    stack.push(...(childrenByParent.get(cur) || []));
+  }
+  return out;
+}
+
+function revealChildren(id) {
+  state.revealedIds.add(id);
+  const kids = childrenByParent.get(id) || [];
+  let added = 0;
+  kids.forEach(kid => {
+    if (!state.revealedIds.has(kid)) {
+      state.revealedIds.add(kid);
+      added++;
+    }
+  });
+  return added;
+}
+
+function revealPath(id, includeChildren = false) {
+  const revealPrimaryChain = startId => {
+    let cur = startId;
+    state.revealedIds.add(cur);
+    while (parentByChild.has(cur)) {
+      cur = parentByChild.get(cur);
+      state.revealedIds.add(cur);
+    }
+  };
+  revealPrimaryChain(id);
+  visualParentIds(id).forEach(parentId => revealPrimaryChain(parentId));
+  if (includeChildren) revealChildren(id);
+}
+
+function collapseChildren(id) {
+  const toHide = descendants(id);
+  toHide.forEach(child => state.revealedIds.delete(child));
+}
+
+function isNodeVisible(n) {
+  if (!passesFacetFilters(n)) return false;
+  if (state.progressiveMode && !state.revealedIds.has(n.id)) return false;
+  return true;
+}
+
+let hoverPanelTimer = null;
+function bindNodeEvents() {
+  svg.querySelectorAll(".node").forEach(el => {
+    el.addEventListener("click", e => {
+      e.stopPropagation();
+      if (hoverPanelTimer) { clearTimeout(hoverPanelTimer); hoverPanelTimer = null; }
+      selectNode(el.dataset.id, true);
+    });
+    el.addEventListener("mouseenter", () => {
+      // Destaque imediato; painel com atraso curto para nao piscar (rodada 2).
+      highlight(el.dataset.id);
+      if (hoverPanelTimer) clearTimeout(hoverPanelTimer);
+      hoverPanelTimer = setTimeout(() => {
+        renderPanel(byId.get(el.dataset.id));
+        hoverPanelTimer = null;
+      }, 170);
+    });
+    el.addEventListener("mouseleave", () => {
+      if (hoverPanelTimer) { clearTimeout(hoverPanelTimer); hoverPanelTimer = null; }
+      // Com no pinado, restaura o destaque do pinado em vez de so limpar (fix 2026-06-11).
+      if (state.selected && byId.has(state.selected)) {
+        highlight(state.selected);
+        renderPanel(byId.get(state.selected));
+      } else {
+        clearHighlights();
+        renderPanel(null);
+      }
+    });
+    el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectNode(el.dataset.id, true); } else if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) { e.preventDefault(); focusAdjacentNode(el.dataset.id, e.key); } });
+  });
+}
+
+function focusAdjacentNode(fromId, direction) {
+  const from = byId.get(fromId); if (!from) return;
+  const horizontal = direction === "ArrowLeft" || direction === "ArrowRight";
+  const candidates = DATA.nodes.filter(n => n.id !== fromId && passesFacetFilters(n)).map(n => { const dx = n.x - from.x, dy = n.y - from.y; const valid = direction === "ArrowLeft" ? dx < -1 : direction === "ArrowRight" ? dx > 1 : direction === "ArrowUp" ? dy < -1 : dy > 1; if (!valid) return null; return { n, score: Math.abs(horizontal ? dx : dy) + Math.abs(horizontal ? dy : dx) * 1.8 }; }).filter(Boolean).sort((a,b) => a.score-b.score);
+  const next=candidates[0] && candidates[0].n; if (!next) return; selectNode(next.id,true); const target=svg.querySelector('.node[data-id="'+CSS.escape(next.id)+'"]'); if(target)target.focus({preventScroll:true});
+}
+
+function selectNode(id, pinned) {
+  const n = byId.get(id);
+  if (!n) return;
+  if (state.progressiveMode && pinned) {
+    revealPath(id);
+    revealChildren(id);
+    applyLineageVisibility();
+  }
+  if (pinned) state.selected = id;
+  highlight(id);
+  renderPanel(n);
+  updateLocalFocus();
+  if (pinned) scrollToNode(n);
+  if (pinned) {
+    try { history.replaceState(null, "", `#${id}`); } catch(e) {}
+  }
+}
+
+function scrollToNode(n, smooth = true) {
+  const geom = computeLocalFocusGeometry(n);
+  let targetX = n.x;
+  let targetY = n.y;
+  if (geom) {
+    const minX = Math.min(n.x - 90, geom.startX);
+    const maxX = Math.max(n.x + 180, geom.startX + geom.shelfW);
+    const minY = Math.min(n.y - 110, geom.startY);
+    const maxY = Math.max(n.y + 110, geom.startY + geom.shelfH);
+    targetX = (minX + maxX) / 2;
+    targetY = (minY + maxY) / 2;
+  }
+  const x = Math.max(0, targetX * state.zoom - wrap.clientWidth * 0.50);
+  const y = Math.max(0, targetY * state.zoom - wrap.clientHeight * 0.50);
+  wrap.scrollTo({ left: x, top: y, behavior: smooth ? "smooth" : "auto" });
+  updateAxes();
+}
+
+function scrollHome(smooth = true) {
+  const home = byId.get("political-economy") || DATA.nodes.find(n => !n.visual_parent) || DATA.nodes[0];
+  if (home) scrollToNode(home, smooth);
+}
+
+function fitAll() {
+  // Enquadra o mapa inteiro na tela (2026-06-11). Atende o "ver tudo de uma vez"
+  // sem reabrir a discussao de zoom semantico.
+  const zx = wrap.clientWidth / width;
+  const zy = wrap.clientHeight / height;
+  setZoom(Math.min(zx, zy), false);
+  wrap.scrollTo({ left: 0, top: 0, behavior: "auto" });
+  updateAxes();
+}
+
+// Declutter de labels em zoom baixo (rodada 2, 2026-06-11): abaixo do limiar,
+// labels de nos medio/menor somem (marcadores continuam visiveis e clicaveis;
+// selecionado e caminho mantem label). NAO e o zoom semantico antigo: nenhum
+// no e ocultado, apenas texto.
+const DECLUTTER_ZOOM = 0.35;
+function updateDeclutter() {
+  svg.classList.toggle("declutter", state.zoom < DECLUTTER_ZOOM);
+}
+
+// Links navegaveis do painel (rodada 2): nome sublinhado -> seleciona o no.
+function nodeLinkHtml(id, label) {
+  if (!id || !byId.has(id)) return esc(label || id || "");
+  return `<button class="nodeLink" data-goto="${esc(id)}">${esc(label || id)}</button>`;
+}
+
+window.copyNodeLink = function(id) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("ymode", state.yMode);
+  url.hash = `#${id}`;
+  const text = url.toString();
+  const feedback = ok => {
+    const btn = document.getElementById("copyLinkBtn");
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = ok ? "Copiado!" : "Falhou";
+    setTimeout(() => { btn.textContent = original; }, 1400);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => feedback(true), () => {
+      window.prompt("Copie o link:", text);
+      feedback(false);
+    });
+  } else {
+    window.prompt("Copie o link:", text);
+  }
+};
+
+function exportPng() {
+  try {
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", width);
+    clone.setAttribute("height", height);
+    clone.classList.remove("declutter");
+    const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    styleEl.textContent = Array.from(document.querySelectorAll("style")).map(s => s.textContent).join("\n");
+    clone.insertBefore(styleEl, clone.firstChild);
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("width", width);
+    bg.setAttribute("height", height);
+    bg.setAttribute("fill", "#f7f7f4");
+    clone.insertBefore(bg, styleEl.nextSibling);
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#f7f7f4";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(pngBlob => {
+        if (!pngBlob) { alert("Falha ao gerar o PNG."); return; }
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(pngBlob);
+        a.download = `mapa_ep_${state.yMode}_${new Date().toISOString().slice(0, 10)}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }, "image/png");
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); alert("Falha ao rasterizar o mapa."); };
+    img.src = url;
+  } catch (err) {
+    alert("Export falhou: " + err.message);
+  }
+}
+
+// Controles do modo progressivo ficam desabilitados quando o modo esta off
+// (rodada 2): evita botoes que nao fazem nada no default.
+function updateProgressiveUi() {
+  const on = state.progressiveMode;
+  const localFocus = document.getElementById("localFocusMode");
+  const reset = document.getElementById("resetProgressive");
+  if (localFocus) localFocus.disabled = !on;
+  if (reset) reset.disabled = !on;
+}
+
+function clearHighlights() {
+  svg.querySelectorAll(".node").forEach(el => el.classList.remove("selected", "path", "muted"));
+  svg.querySelectorAll(".visualEdge").forEach(el => el.classList.remove("muted"));
+  svg.querySelectorAll(".secondaryEdge").forEach(el => el.classList.remove("active"));
+  applyLineageVisibility();
+}
+
+function highlight(id) {
+  const pathIds = new Set([id, ...ancestors(id), ...visualParentIds(id), ...descendants(id)]);
+  svg.querySelectorAll(".node").forEach(el => {
+    el.classList.toggle("selected", el.dataset.id === id && state.selected === id);
+    el.classList.toggle("path", pathIds.has(el.dataset.id) && el.dataset.id !== id);
+    const node = byId.get(el.dataset.id);
+    const muted = !pathIds.has(el.dataset.id) || !passesFacetFilters(node);
+    el.classList.toggle("muted", muted);
+  });
+  svg.querySelectorAll(".visualEdge").forEach(el => {
+    const s = el.dataset.source;
+    const t = el.dataset.target;
+    el.classList.toggle("muted", !(pathIds.has(s) && pathIds.has(t)));
+  });
+  svg.querySelectorAll(".secondaryEdge").forEach(el => {
+    const active = state.showSecondary && (el.dataset.source === id || el.dataset.target === id);
+    el.classList.toggle("active", active);
+  });
+}
+
+function applyLineageVisibility() {
+  svg.querySelectorAll(".node").forEach(el => {
+    const n = byId.get(el.dataset.id);
+    const visible = isNodeVisible(n);
+    const kids = childrenByParent.get(n.id) || [];
+    const hiddenKids = kids.some(id => !state.revealedIds.has(id));
+    el.classList.toggle("has-children", kids.length > 0);
+    el.classList.toggle("can-expand", state.progressiveMode && hiddenKids);
+    el.style.display = visible ? "" : "none";
+  });
+  svg.querySelectorAll(".visualEdge").forEach(el => {
+    const a = byId.get(el.dataset.source);
+    const b = byId.get(el.dataset.target);
+    const visible = isNodeVisible(a) && isNodeVisible(b);
+    el.style.display = visible ? "" : "none";
+  });
+  svg.querySelectorAll(".secondaryEdge").forEach(el => {
+    const a = byId.get(el.dataset.source);
+    const b = byId.get(el.dataset.target);
+    const visible = isNodeVisible(a) && isNodeVisible(b);
+    el.style.display = visible ? "" : "none";
+  });
+}
+
+function applyState() {
+  applyLineageVisibility();
+  if (state.selected) highlight(state.selected);
+  updateLocalFocus();
+  renderStatus();
+}
+
+function renderPanel(n) {
+  const el = document.getElementById("panelInner");
+  if (!n) {
+    el.innerHTML = `<h2>Selecione um no</h2><div class="meta">Clique em uma literatura para ver descricao, origem, filiacao visual e relacoes conceituais.</div>`;
+    return;
+  }
+
+  const parent = n.visual_parent ? byId.get(n.visual_parent) : null;
+  const coparents = (n.visual_coparents || []).map(id => byId.get(id)).filter(Boolean);
+  const kidEdges = visualEdges.filter(e => e.source === n.id && byId.has(e.target));
+  const sec = secondaryByNode.get(n.id) || [];
+  const obsUrl = "";
+  const tagPills = tagsArray(n).map(tag => `<span class="pill">${esc(tag)}</span>`).join("");
+  const papersHtml = listItems(n.papers_chave, 7);
+  const modelosHtml = listItems(n.modelos_chave, 5);
+  const perguntasHtml = listItems(n.perguntas_relacionadas, 5);
+  const autoresHtml = listItems(n.autores_chave, 6);
+  const aulasHtml = listItems(n.aulas_verdier, 5);
+  const slotsHtml = listItems(n.slot_verdier, 5);
+  const childrenHtml = kidEdges.length
+    ? `<ul class="panelList">${kidEdges.map(e => {
+        const child = byId.get(e.target);
+        const status = state.revealedIds.has(e.target) ? "aberto" : "fechado";
+        const role = (e.role || "primary") === "coparent" ? "filho hibrido" : "filho direto";
+        return `<li><strong>${status}:</strong> ${nodeLinkHtml(e.target, child.label)} <span class="panelSubtle">(${role})</span></li>`;
+      }).join("")}</ul>`
+    : `<p>Nenhum filho visual direto.</p>`;
+  const coparentsHtml = coparents.length
+    ? `<ul class="panelList">${coparents.map(p => `<li>${nodeLinkHtml(p.id, p.label)}</li>`).join("")}</ul>`
+    : `<p>Nenhum co-pai visual forte.</p>`;
+
+  el.innerHTML = `
+    <h2>${esc(n.label)}</h2>
+    <div class="meta">${esc(n.ano_origem || "s/d")} · ${esc(typeLabel(n.tipo_ontologico))} · ${esc(ontologyGroupLabel(n.grupo_ontologico_visual))}</div>
+    <div>
+      <span class="pill">família: ${esc(branchKey(n))}</span>
+      <span class="pill">cluster: ${esc(clusterLabel(n))}</span>
+      <span class="pill">presença no curso: ${esc(verdierLabel(n.centralidade_verdier))}</span>
+    </div>
+    <div class="actions">
+      <button onclick="openChildren('${n.id}')">Abrir filhos</button>
+      <button onclick="hideChildren('${n.id}')">Recolher filhos</button>
+      <button id="copyLinkBtn" onclick="copyNodeLink('${n.id}')" title="Copia URL que abre o mapa neste no">Copiar link</button>
+      <button onclick="clearSelection()">Soltar foco</button>
+    </div>
+
+    <div class="panelBlock"><strong>O que e</strong>${textBlock(n.descricao_o_que_e)}</div>
+
+    <div class="panelBlock">
+      <strong>Marco e referencias</strong>
+      <p><strong>Marco de origem:</strong> ${esc(n.marco_origem || "Sem marco cadastrado.")}</p>
+      <details class="detailsBlock" open><summary>Papers-chave</summary>${papersHtml}</details>
+      <details class="detailsBlock"><summary>Modelos-chave</summary>${modelosHtml}</details>
+      <details class="detailsBlock"><summary>Autores-chave</summary>${autoresHtml}</details>
+    </div>
+
+    <div class="panelBlock">
+      <strong>Filiacao visual principal</strong>
+      <p><strong>Pai visual:</strong> ${parent ? nodeLinkHtml(parent.id, parent.label) : "Tronco do mapa"}</p>
+      <details class="detailsBlock" ${coparents.length ? "open" : ""}><summary>Co-pais visuais fortes</summary>${coparentsHtml}</details>
+      <details class="detailsBlock"><summary>Filhos visuais (${kidEdges.length})</summary>${childrenHtml}</details>
+    </div>
+
+    <div class="panelBlock">
+      <strong>Relacoes conceituais secundarias</strong>
+      <p class="panelSubtle"><strong>Descende de</strong> = genealogia intelectual forte, mas fora da aresta visual principal. <strong>Usa base de</strong> = dependencia conceitual, metodologica ou tematica. No mapa, as setas apontam da origem/base para a literatura que recebe essa influencia.</p>
+      ${secondaryRelationGroups(n, sec)}
+    </div>
+
+    <div class="panelBlock">
+      <strong>Curso do Verdier</strong>
+      <ul class="panelList">
+        <li><strong>Centralidade:</strong> ${esc(verdierLabel(n.centralidade_verdier))}</li>
+      </ul>
+      <details class="detailsBlock"><summary>Aulas / slots</summary>${aulasHtml}${slotsHtml}</details>
+    </div>
+
+    <div class="panelBlock">
+      <strong>Perguntas e tags</strong>
+      <details class="detailsBlock"><summary>Perguntas relacionadas</summary>${perguntasHtml}</details>
+      <p>${tagPills || "Sem tags tematicas."}</p>
+    </div>
+
+    <div class="panelBlock"><strong>Nota editorial</strong><p>${esc(n.observacao || "Sem observacao editorial.")}</p></div>
+  `;
+  el.querySelectorAll("[data-goto]").forEach(btn => {
+    btn.addEventListener("click", () => selectNode(btn.dataset.goto, true));
+  });
+}
+
+function clearSelection() {
+  state.selected = null;
+  state.searchInfo = null;
+  document.getElementById("search").value = "";
+  clearHighlights();
+  updateLocalFocus();
+  renderPanel(null);
+  renderStatus();
+}
+window.clearSelection = clearSelection;
+
+function openChildren(id) {
+  revealPath(id);
+  revealChildren(id);
+  applyState();
+  renderPanel(byId.get(id));
+}
+window.openChildren = openChildren;
+
+function hideChildren(id) {
+  collapseChildren(id);
+  applyState();
+  renderPanel(byId.get(id));
+}
+window.hideChildren = hideChildren;
+
+function renderControls() {
+  const options = document.getElementById("nodeOptions");
+  options.innerHTML = DATA.nodes
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map(n => `<option value="${esc(n.label)}"></option>`)
+    .join("");
+
+  const branchLegend = document.getElementById("branchLegend");
+  const familyCounts = new Map();
+  const clusterCounts = new Map();
+  DATA.nodes.forEach(n => {
+    familyCounts.set(branchKey(n), (familyCounts.get(branchKey(n)) || 0) + 1);
+    clusterCounts.set(clusterKey(n), (clusterCounts.get(clusterKey(n)) || 0) + 1);
+  });
+  const clustersByFamily = new Map();
+  (DATA.visualClusters || []).forEach(cluster => {
+    const sample = DATA.nodes.find(n => clusterKey(n) === cluster);
+    if (!sample) return;
+    const family = branchKey(sample);
+    if (!clustersByFamily.has(family)) clustersByFamily.set(family, []);
+    clustersByFamily.get(family).push(cluster);
+  });
+  branchLegend.innerHTML = (DATA.visualBranches || []).map(family => {
+    const familyLabel = (DATA.familyLabels && DATA.familyLabels[family]) || separatedBranchLabel(family);
+    const familyRow = `
+      <div class="legendRow">
+        <span class="swatch" style="background:${FAMILY_COLORS[family] || "#64748b"}"></span>
+        <span><strong style="display:inline">${esc(familyLabel)}</strong> (${familyCounts.get(family) || 0})</span>
+      </div>
+    `;
+    const clusterRows = (clustersByFamily.get(family) || []).map(cluster => `
+      <div class="legendRow" style="padding-left:16px">
+        <span class="swatch" style="background:${CLUSTER_COLORS[cluster] || "#64748b"}"></span>
+        <span>${esc((DATA.clusterLabels && DATA.clusterLabels[cluster]) || clusterLabel({ cluster_visual: cluster }))} (${clusterCounts.get(cluster) || 0})</span>
+      </div>
+    `).join("");
+    return familyRow + clusterRows;
+  }).join("");
+
+  const shapeLegend = document.getElementById("shapeLegend");
+  shapeLegend.innerHTML = ONTOLOGY_GROUP_ORDER.map(group => `
+    <div class="legendRow">
+      <span>${shapeLegendMarker(group)}</span>
+      <span><strong style="display:inline">${esc(ONTOLOGY_GROUP_LABELS[group])}</strong>: ${esc(ONTOLOGY_GROUP_DESCRIPTIONS[group])}</span>
+    </div>
+  `).join("");
+
+  const typeControl = document.getElementById("typeControl");
+  typeControl.innerHTML = ONTOLOGY_GROUP_ORDER.map(group => `
+    <label class="filterCheck">
+      <input type="checkbox" data-group="${esc(group)}" checked>
+      ${shapeLegendMarker(group)} ${esc(ONTOLOGY_GROUP_LABELS[group])}
+    </label>
+  `).join("");
+  typeControl.querySelectorAll("input").forEach(cb => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) state.visibleOntologyGroups.add(cb.dataset.group);
+      else state.visibleOntologyGroups.delete(cb.dataset.group);
+      if (state.selected && !passesFacetFilters(byId.get(state.selected))) state.selected = null;
+      clearHighlights();
+      applyState();
+    });
+  });
+
+  const traditionControl = document.getElementById("traditionControl");
+  traditionControl.innerHTML = (DATA.visualBranches || [])
+    .map(branch => `
+      <label class="filterCheck">
+        <input type="checkbox" data-branch="${esc(branch)}" checked>
+        <span class="swatch" style="background:${FAMILY_COLORS[branch] || "#64748b"}"></span>${esc((DATA.familyLabels && DATA.familyLabels[branch]) || separatedBranchLabel(branch))}
+      </label>
+    `).join("");
+  traditionControl.querySelectorAll("input").forEach(cb => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) state.visibleBranches.add(cb.dataset.branch);
+      else state.visibleBranches.delete(cb.dataset.branch);
+      if (state.selected && !passesFacetFilters(byId.get(state.selected))) state.selected = null;
+      clearHighlights();
+      applyState();
+    });
+  });
+
+  const verdierControl = document.getElementById("verdierControl");
+  const verdierCounts = { central: 0, mencionado: 0, ausente: 0 };
+  DATA.nodes.forEach(n => { verdierCounts[verdierKey(n)] += 1; });
+  const VERDIER_FILTER_LABELS = { central: "central no curso", mencionado: "mencionada no curso", ausente: "fora do curso" };
+  verdierControl.innerHTML = ["central", "mencionado", "ausente"].map(key => `
+    <label class="filterCheck">
+      <input type="checkbox" data-verdier="${key}" checked>
+      ${esc(VERDIER_FILTER_LABELS[key])} (${verdierCounts[key] || 0})
+    </label>
+  `).join("");
+  verdierControl.querySelectorAll("input").forEach(cb => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) state.visibleVerdier.add(cb.dataset.verdier);
+      else state.visibleVerdier.delete(cb.dataset.verdier);
+      if (state.selected && !passesFacetFilters(byId.get(state.selected))) state.selected = null;
+      clearHighlights();
+      applyState();
+    });
+  });
+
+  document.getElementById("tagFilter").addEventListener("input", e => {
+    state.tagQuery = e.target.value;
+    if (state.selected && !passesFacetFilters(byId.get(state.selected))) state.selected = null;
+    clearHighlights();
+    applyState();
+  });
+
+  updateYModeUi();
+}
+
+function updateYModeUi() {
+  const select = document.getElementById("yMode");
+  if (select) select.value = state.yMode;
+  const help = document.getElementById("yModeHelp");
+  if (help) help.textContent = Y_MODE_HELP[state.yMode] || Y_MODE_HELP.integrado;
+}
+
+function setYMode(mode, scrollAfter = true) {
+  if (!Y_MODE_LABELS[mode]) return;
+  state.yMode = mode;
+  updateYModeUi();
+  render();
+  if (!scrollAfter) return;
+  if (state.selected && byId.has(state.selected)) {
+    renderPanel(byId.get(state.selected));
+    scrollToNode(byId.get(state.selected), false);
+  } else {
+    scrollHome(false);
+  }
+}
+
+function renderStatus() {
+  const visible = DATA.nodes.filter(isNodeVisible).length;
+  const mode = state.progressiveMode ? "foco" : "todos";
+  const tagInfo = state.tagQuery.trim() ? " · tags filtradas" : "";
+  const searchInfo = state.searchInfo ? ` · ${state.searchInfo}` : "";
+  document.getElementById("status").textContent = `${visible} de ${DATA.nodes.length} nos · ${mode} · Y ${Y_MODE_LABELS[state.yMode]}${tagInfo}${searchInfo}`;
+}
+
+// Busca: dispara so no Enter ou na escolha da lista, nao a cada tecla (fix 2026-06-11).
+// Comparacao insensivel a acento; match por label, id e tags.
+function normSearch(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+function nodeMatchesQuery(n, q) {
+  if (normSearch(n.label).includes(q)) return true;
+  if (normSearch(n.id).includes(q)) return true;
+  return tagsArray(n).some(tag => normSearch(tag).includes(q));
+}
+let lastSearch = { q: "", matches: [], index: -1 };
+function runSearch(rawValue) {
+  const q = normSearch(String(rawValue || "").trim());
+  if (!q) return;
+  if (q === lastSearch.q && lastSearch.matches.length > 1) {
+    // Mesmo termo: Enter repetido cicla entre os resultados (rodada 2).
+    lastSearch.index = (lastSearch.index + 1) % lastSearch.matches.length;
+  } else {
+    const matches = DATA.nodes.filter(n => nodeMatchesQuery(n, q));
+    const exactIdx = matches.findIndex(n => normSearch(n.label) === q);
+    lastSearch = { q, matches, index: exactIdx >= 0 ? exactIdx : 0 };
+  }
+  const found = lastSearch.matches[lastSearch.index];
+  if (!found) {
+    state.searchInfo = "busca sem resultado";
+    renderStatus();
+    return;
+  }
+  state.searchInfo = lastSearch.matches.length > 1
+    ? `busca ${lastSearch.index + 1}/${lastSearch.matches.length} (Enter cicla)`
+    : null;
+  if (state.progressiveMode) {
+    revealPath(found.id, true);
+    applyLineageVisibility();
+  }
+  selectNode(found.id, true);
+}
+const searchInput = document.getElementById("search");
+let searchEnterUsed = false;
+searchInput.addEventListener("change", () => {
+  if (searchEnterUsed) { searchEnterUsed = false; return; }
+  runSearch(searchInput.value);
+});
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    searchEnterUsed = true;
+    runSearch(searchInput.value);
+  }
+});
+searchInput.addEventListener("input", () => {
+  if (!searchInput.value.trim()) {
+    state.searchInfo = null;
+    lastSearch = { q: "", matches: [], index: -1 };
+    renderStatus();
+  }
+});
+document.getElementById("clear").addEventListener("click", clearSelection);
+document.getElementById("fit").addEventListener("click", () => scrollHome(true));
+document.getElementById("zoomOut").addEventListener("click", () => setZoom(state.zoom / ZOOM_STEP));
+document.getElementById("zoomIn").addEventListener("click", () => setZoom(state.zoom * ZOOM_STEP));
+document.getElementById("zoomReset").addEventListener("click", () => setZoom(1));
+document.getElementById("fitAll").addEventListener("click", () => fitAll());
+document.getElementById("exportPng").addEventListener("click", exportPng);
+document.getElementById("yMode").addEventListener("change", e => setYMode(e.target.value));
+document.getElementById("progressiveMode").addEventListener("change", e => {
+  state.progressiveMode = e.target.checked;
+  updateProgressiveUi();
+  if (state.progressiveMode && state.selected) revealPath(state.selected, false);
+  clearHighlights();
+  applyState();
+});
+document.getElementById("localFocusMode").addEventListener("change", e => {
+  state.localFocusMode = e.target.checked;
+  updateLocalFocus();
+  if (state.selected) scrollToNode(byId.get(state.selected));
+});
+document.getElementById("resetProgressive").addEventListener("click", () => {
+  resetProgressiveState();
+  state.selected = null;
+  document.getElementById("search").value = "";
+  clearHighlights();
+  updateLocalFocus();
+  renderPanel(null);
+  scrollHome(true);
+});
+wrap.addEventListener("wheel", e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  const factor = Math.exp(-e.deltaY * 0.0011);
+  setZoomAt(state.zoom * factor, e.clientX, e.clientY);
+}, { passive: false });
+document.getElementById("showSecondary").addEventListener("change", e => {
+  state.showSecondary = e.target.checked;
+  if (state.selected) highlight(state.selected);
+});
+document.querySelectorAll(".filterMenu").forEach(menu => {
+  menu.addEventListener("toggle", () => {
+    if (!menu.open) return;
+    document.querySelectorAll(".filterMenu").forEach(other => {
+      if (other !== menu) other.open = false;
+    });
+  });
+});
+
+// Dica de primeira visita (2026-06-11). Reabrivel pelo botao "?".
+const HINT_DISMISS_KEY = "mapa_ep_hint_v1";
+function hintDismissed() {
+  try { return localStorage.getItem(HINT_DISMISS_KEY) === "1"; } catch (e) { return false; }
+}
+function dismissHint() {
+  const el = document.getElementById("firstVisitHint");
+  if (el) el.hidden = true;
+  try { localStorage.setItem(HINT_DISMISS_KEY, "1"); } catch (e) {}
+}
+function maybeShowFirstVisitHint() {
+  if (hintDismissed()) return;
+  const el = document.getElementById("firstVisitHint");
+  if (!el) return;
+  el.hidden = false;
+  el.addEventListener("click", e => { if (e.target === el) dismissHint(); });
+}
+document.getElementById("hintDismiss").addEventListener("click", dismissHint);
+
+// Atalhos de teclado (2026-06-11): Esc solta foco; +/- zoom; 0 = 100%;
+// f = ver tudo; / = busca. Ignorados enquanto se digita em um campo.
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    const hint = document.getElementById("firstVisitHint");
+    if (hint && !hint.hidden) { dismissHint(); return; }
+  }
+  const t = e.target;
+  const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+  if (typing) {
+    if (e.key === "Escape") t.blur();
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "Escape") {
+    document.querySelectorAll(".filterMenu[open]").forEach(m => { m.open = false; });
+    clearSelection();
+  } else if (e.key === "+" || e.key === "=") {
+    setZoom(state.zoom * Math.pow(ZOOM_STEP, 8));
+  } else if (e.key === "-" || e.key === "_") {
+    setZoom(state.zoom / Math.pow(ZOOM_STEP, 8));
+  } else if (e.key === "0") {
+    setZoom(1);
+  } else if (e.key === "f" || e.key === "F") {
+    fitAll();
+  } else if (e.key === "/") {
+    e.preventDefault();
+    searchInput.focus();
+    searchInput.select();
+  }
+});
+
+let panning = null;
+let didPan = false;
+svg.addEventListener("click", e => {
+  if (didPan) {
+    didPan = false;
+    return;
+  }
+  if (e.target.closest && e.target.closest(".node, .localCard")) return;
+  clearSelection();
+});
+wrap.addEventListener("mousedown", e => {
+  if (e.button !== 0) return;
+  if (e.target.closest && e.target.closest(".node, .localCard")) return;
+  didPan = false;
+  panning = {
+    x: e.clientX,
+    y: e.clientY,
+    left: wrap.scrollLeft,
+    top: wrap.scrollTop,
+  };
+  wrap.classList.add("panning");
+  e.preventDefault();
+});
+window.addEventListener("mousemove", e => {
+  if (!panning) return;
+  const dx = e.clientX - panning.x;
+  const dy = e.clientY - panning.y;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPan = true;
+  wrap.scrollLeft = panning.left - dx;
+  wrap.scrollTop = panning.top - dy;
+});
+window.addEventListener("mouseup", () => {
+  if (!panning) return;
+  panning = null;
+  wrap.classList.remove("panning");
+});
+wrap.addEventListener("scroll", updateAxes);
+window.addEventListener("resize", updateAxes);
+
+function initialYMode() {
+  const raw = new URLSearchParams(window.location.search).get("ymode");
+  const aliases = { ramos: "separado", programas: "integrado", ancoragem: "integrado", polos: "integrado" };
+  const requested = aliases[raw] || raw;
+  if (requested && Y_MODE_LABELS[requested]) state.yMode = requested;
+  updateYModeUi();
+}
+
+function initialViewOptions() {
+  const params = new URLSearchParams(window.location.search);
+  const rawProgressive = (params.get("progressive") || params.get("foco") || "").toLowerCase();
+  if (["0", "false", "off", "todos"].includes(rawProgressive)) state.progressiveMode = false;
+  if (["1", "true", "on", "foco"].includes(rawProgressive)) state.progressiveMode = true;
+  const progressiveInput = document.getElementById("progressiveMode");
+  if (progressiveInput) progressiveInput.checked = state.progressiveMode;
+}
+
+renderControls();
+initialYMode();
+initialViewOptions();
+render();
+const filterParam = new URLSearchParams(window.location.search).get("openFilter");
+if (filterParam === "types") document.getElementById("typeFilterMenu").open = true;
+if (filterParam === "traditions") document.getElementById("traditionFilterMenu").open = true;
+if (filterParam === "legend") document.getElementById("legendMenu").open = true;
+function initialFocus() {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("focus") || window.location.hash.replace(/^#/, "");
+  if (!requested || !byId.has(requested)) {
+    fitAll();
+    return;
+  }
+  revealPath(requested, true);
+  state.selected = requested;
+  applyState();
+  highlight(requested);
+  renderPanel(byId.get(requested));
+  updateLocalFocus();
+  scrollToNode(byId.get(requested), false);
+  try { history.replaceState(null, "", `#${requested}`); } catch(e) {}
+}
+function initialZoom() {
+  const raw = new URLSearchParams(window.location.search).get("zoom");
+  if (!raw) return;
+  const value = Number(raw.replace(",", "."));
+  if (Number.isFinite(value)) setZoom(value, false);
+}
+initialZoom();
+initialFocus();
+updateProgressiveUi();
+updateDeclutter();
+// Apresentação inicia diretamente no mapa; ajuda disponível no botão ?.
+</script>
+</body>
+</html>
