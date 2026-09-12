@@ -1962,6 +1962,16 @@ function renderPanel(n) {
   const autoresHtml = listItems(n.autores_chave, 6);
   const aulasHtml = listItems(n.aulas_verdier, 5);
   const slotsHtml = listItems(n.slot_verdier, 5);
+  const visibleCount = DATA.nodes.filter(isNodeVisible).length;
+  const canReturnToRoot = state.progressiveMode && DEFAULT_ROOT_ID && passesFacetFilters(byId.get(DEFAULT_ROOT_ID));
+  const rootUnavailableNote = state.progressiveMode && DEFAULT_ROOT_ID && !passesFacetFilters(byId.get(DEFAULT_ROOT_ID))
+    ? `<p class="panelSubtle">A raiz está fora do recorte atual. Ajuste os filtros para recomeçar pela raiz.</p>` : "";
+  const initialRootHint = n.id === DEFAULT_ROOT_ID && state.progressiveMode && visibleCount === 1
+    ? `<div class="panelIntro"><strong>Comece por aqui</strong><p>Clique em Political Economy para revelar os primeiros ramos.</p></div>` : "";
+  const returnAction = canReturnToRoot && n.id !== DEFAULT_ROOT_ID
+    ? `<button onclick="returnToRoot()" title="Volta à raiz sem alterar os filtros">Voltar à raiz</button>` : "";
+  const restartAction = canReturnToRoot && n.id === DEFAULT_ROOT_ID && visibleCount > 1
+    ? `<button onclick="returnToRoot()">Recomeçar</button>` : "";
   const childrenHtml = kidEdges.length
     ? `<ul class="panelList">${kidEdges.map(e => {
         const child = byId.get(e.target);
@@ -1985,9 +1995,12 @@ function renderPanel(n) {
     <div class="actions">
       <button onclick="openChildren('${n.id}')">Abrir filhos</button>
       <button onclick="hideChildren('${n.id}')">Recolher filhos</button>
+      ${returnAction}${restartAction}
       <button id="copyLinkBtn" onclick="copyNodeLink('${n.id}')" title="Copia o link que abre o mapa neste nó">Copiar link</button>
-      <button onclick="clearSelection()">Soltar foco</button>
+      <button onclick="clearSelection()">Limpar seleção</button>
     </div>
+    ${initialRootHint}
+    ${rootUnavailableNote}
 
     <div class="panelBlock"><strong>O que é</strong>${textBlock(n.descricao_o_que_e)}</div>
 
@@ -2044,6 +2057,33 @@ function clearSelection() {
   renderStatus();
 }
 window.clearSelection = clearSelection;
+
+function returnToRoot() {
+  const root = DEFAULT_ROOT_ID && byId.get(DEFAULT_ROOT_ID);
+  if (!root || !state.progressiveMode) {
+    clearSelection();
+    return;
+  }
+  // Nunca limpa filtros implicitamente. A ação só é exposta quando a raiz passa pelo recorte.
+  if (!passesFacetFilters(root)) { clearSelection(); return; }
+  resetProgressiveState();
+  state.selected = root.id;
+  state.searchInfo = null;
+  document.getElementById("search").value = "";
+  try {
+    const url = new URL(location.href);
+    url.searchParams.delete("focus");
+    url.searchParams.set("progressive", "1");
+    url.hash = "";
+    history.replaceState(null, "", url.pathname + url.search);
+  } catch(e) {}
+  clearHighlights();
+  updateLocalFocus();
+  renderPanel(root);
+  renderStatus();
+  scrollToNode(root);
+}
+window.returnToRoot = returnToRoot;
 
 function openChildren(id) {
   revealPath(id);
@@ -2287,13 +2327,7 @@ document.getElementById("compactLayout").addEventListener("change", e => {
   else scrollHome(false);
 });
 document.getElementById("resetProgressive").addEventListener("click", () => {
-  resetProgressiveState();
-  state.selected = DEFAULT_ROOT_ID || null;
-  document.getElementById("search").value = "";
-  clearHighlights();
-  updateLocalFocus();
-  renderPanel(null);
-  scrollHome(true);
+  returnToRoot();
 });
 wrap.addEventListener("wheel", e => {
   if (!e.ctrlKey && !e.metaKey) return;
