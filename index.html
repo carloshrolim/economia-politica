@@ -643,7 +643,7 @@ button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-v
   </div>
 </div>
 
-<script src="v23/genealogia_data_v3.js"></script>
+<script src="v24/genealogia_data_v3.js"></script>
 <script>
 const DATA = window.GENEALOGIA_DATA;
 if (!DATA) {
@@ -1741,6 +1741,10 @@ function scrollToNode(n, smooth = true) {
     const maxY = Math.max(n.y + 110, geom.startY + geom.shelfH);
     targetX = (minX + maxX) / 2;
     targetY = (minY + maxY) / 2;
+    const dx = wrap.clientWidth * 0.35 / state.zoom;
+    const dy = wrap.clientHeight * 0.35 / state.zoom;
+    targetX = Math.max(n.x - dx, Math.min(n.x + dx, targetX));
+    targetY = Math.max(n.y - dy, Math.min(n.y + dy, targetY));
   }
   const x = Math.max(0, targetX * state.zoom - wrap.clientWidth * 0.50);
   const y = Math.max(0, targetY * state.zoom - wrap.clientHeight * 0.50);
@@ -1917,23 +1921,8 @@ function applyLineageVisibility() {
 }
 
 function scrollToExpandedNode(n, smooth = true) {
-  const visibleKids = (childrenByParent.get(n.id) || [])
-    .map(id => byId.get(id))
-    .filter(kid => kid && isNodeVisible(kid));
-  if (!visibleKids.length) { scrollToNode(n, smooth); return; }
-  const all = [n, ...visibleKids];
-  const minX = Math.min(...all.map(node => node.x)) - 120;
-  const maxX = Math.max(...all.map(node => node.x)) + 270;
-  const minY = Math.min(...all.map(node => node.y)) - 120;
-  const maxY = Math.max(...all.map(node => node.y)) + 120;
-  const targetX = (minX + maxX) / 2;
-  const targetY = (minY + maxY) / 2;
-  wrap.scrollTo({
-    left: Math.max(0, targetX * state.zoom - wrap.clientWidth * 0.50),
-    top: Math.max(0, targetY * state.zoom - wrap.clientHeight * 0.50),
-    behavior: smooth ? "smooth" : "auto",
-  });
-  updateAxes();
+  // Mantém o nó clicado visível, sem centralizar o espaço vazio entre filhos.
+  scrollToNode(n, smooth);
 }
 
 function applyState() {
@@ -2256,11 +2245,14 @@ let lastSearch = { q: "", matches: [], index: -1 };
 function runSearch(rawValue) {
   const q = normSearch(String(rawValue || "").trim());
   if (!q) return;
-  if (q === lastSearch.q && lastSearch.matches.length > 1) {
+  const matches = DATA.nodes.filter(n => passesFacetFilters(n) && nodeMatchesQuery(n, q));
+  const sameMatches = q === lastSearch.q
+    && matches.length === lastSearch.matches.length
+    && matches.every((n, i) => n.id === lastSearch.matches[i].id);
+  if (sameMatches && matches.length > 1) {
     // Mesmo termo: Enter repetido cicla entre os resultados (rodada 2).
     lastSearch.index = (lastSearch.index + 1) % lastSearch.matches.length;
   } else {
-    const matches = DATA.nodes.filter(n => nodeMatchesQuery(n, q));
     const exactIdx = matches.findIndex(n => normSearch(n.label) === q);
     lastSearch = { q, matches, index: exactIdx >= 0 ? exactIdx : 0 };
   }
