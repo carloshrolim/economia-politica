@@ -2245,11 +2245,14 @@ let lastSearch = { q: "", matches: [], index: -1 };
 function runSearch(rawValue) {
   const q = normSearch(String(rawValue || "").trim());
   if (!q) return;
-  if (q === lastSearch.q && lastSearch.matches.length > 1) {
+  const matches = DATA.nodes.filter(n => passesFacetFilters(n) && nodeMatchesQuery(n, q));
+  const sameMatches = q === lastSearch.q
+    && matches.length === lastSearch.matches.length
+    && matches.every((n, i) => n.id === lastSearch.matches[i].id);
+  if (sameMatches && matches.length > 1) {
     // Mesmo termo: Enter repetido cicla entre os resultados (rodada 2).
     lastSearch.index = (lastSearch.index + 1) % lastSearch.matches.length;
   } else {
-    const matches = DATA.nodes.filter(n => nodeMatchesQuery(n, q));
     const exactIdx = matches.findIndex(n => normSearch(n.label) === q);
     lastSearch = { q, matches, index: exactIdx >= 0 ? exactIdx : 0 };
   }
